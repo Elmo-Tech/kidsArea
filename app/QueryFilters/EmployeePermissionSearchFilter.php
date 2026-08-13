@@ -1,0 +1,41 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\QueryFilters;
+
+use Illuminate\Database\Eloquent\Builder;
+use Spatie\QueryBuilder\Filters\Filter;
+
+final class EmployeePermissionSearchFilter implements Filter
+{
+    public function __invoke(
+        Builder $query,
+        mixed $value,
+        string $property
+    ): void {
+        $search = trim((string) $value);
+
+        if ($search === '') {
+            return;
+        }
+
+        $query->whereHas(
+            'employee',
+            function (Builder $query) use ($search): void {
+                $query
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere(
+                        'national_id',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'phone',
+                        'like',
+                        "%{$search}%"
+                    );
+            }
+        );
+    }
+}
