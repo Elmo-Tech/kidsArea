@@ -17,7 +17,7 @@ Route::prefix('v1')->group(function (): void {
     require base_path('routes/api/v1/employee.php');
 });
 
-Route::prefix('v1')->group(function (): void {
+Route::prefix('v1')->middleware(['locale', 'auth:sanctum'])->group(function (): void {
     Route::get('/selects', [SelectController::class, 'getSelects']);
 });
 
