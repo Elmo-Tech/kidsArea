@@ -20,9 +20,8 @@ return new class extends Migration
                 ->onDelete('cascade');
 
             $table->date('attendance_date');
-
-            $table->time('check_in_at')->nullable();
-            $table->time('check_out_at')->nullable();
+            $table->datetime('check_in_at')->nullable();
+            $table->datetime('check_out_at')->nullable();
 
             $table->unsignedInteger('worked_minutes')->nullable();
 

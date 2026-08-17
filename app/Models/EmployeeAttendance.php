@@ -14,7 +14,6 @@ class EmployeeAttendance extends Model
     protected $fillable = [
         'employee_id',
         'attendance_date',
-
         'check_in_at',
         'check_out_at',
 
@@ -34,6 +33,8 @@ class EmployeeAttendance extends Model
     {
         return [
             'attendance_date' => 'date',
+            'check_in_at' => 'datetime',
+            'check_out_at' => 'datetime',
 
             'status' => EmployeeAttendanceStatusEnum::class,
         ];

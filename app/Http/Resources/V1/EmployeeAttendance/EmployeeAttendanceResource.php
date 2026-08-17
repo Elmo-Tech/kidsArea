@@ -12,8 +12,7 @@ class EmployeeAttendanceResource extends JsonResource
         return [
             'id' => $this->id,
 
-            'attendanceDate' =>
-                $this->attendance_date?->format('Y-m-d'),
+            'attendanceDate' => $this->attendance_date,
 
             'checkInAt' => $this->formatTime($this->check_in_at),
             'checkOutAt' => $this->formatTime($this->check_out_at),

@@ -9,16 +9,6 @@ use App\Enums\EmployeeLeaveStatusEnum;
 use App\Enums\EmployeePermissionStatusEnum;
 use App\Enums\EmployeePermissionTypeEnum;
 use App\Exceptions\Employee\EmployeeAttendanceAlreadyExistsException;
-use App\Models\EmployeeAttendance;
-use App\Models\EmployeeContract;
-use App\Models\EmployeeLeave;
-use App\Models\EmployeePermission;
-use Carbon\Carbon;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Spatie\QueryBuilder\AllowedFilter;
-use Spatie\QueryBuilder\QueryBuilder;
 use App\Exceptions\EmployeeAttendance\EmployeeAlreadyCheckedInException;
 use App\Exceptions\EmployeeAttendance\EmployeeAlreadyCheckedOutException;
 use App\Exceptions\EmployeeAttendance\EmployeeHasNoActiveContractException;
@@ -26,7 +16,18 @@ use App\Exceptions\EmployeeAttendance\EmployeeNotCheckedInException;
 use App\Exceptions\EmployeeAttendance\EmployeeOnApprovedLeaveException;
 use App\Exceptions\EmployeeAttendance\UserHasNoEmployeeException;
 use App\Models\Employee;
+use App\Models\EmployeeAttendance;
+use App\Models\EmployeeContract;
+use App\Models\EmployeeLeave;
+use App\Models\EmployeePermission;
 use App\Models\User;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class EmployeeAttendanceService
 {
@@ -41,7 +42,7 @@ class EmployeeAttendanceService
             ->with([
                 'employee.jobTitle',
             ])
-            ->allowedFilters(
+            ->allowedFilters([
                 AllowedFilter::exact(
                     'employeeId',
                     'employee_id'
@@ -55,7 +56,7 @@ class EmployeeAttendanceService
                     'attendanceDate',
                     'attendance_date'
                 ),
-            )
+            ])
             ->latest('attendance_date')
             ->latest('id')
             ->paginate($perPage);
@@ -69,178 +70,181 @@ class EmployeeAttendanceService
      * - ABSENT for employees who should have worked but did not attend.
      */
     public function syncDay(string $date): void
-{
-    DB::transaction(function () use ($date): void {
-        $attendanceDate = Carbon::parse($date)->startOfDay();
+    {
+        DB::transaction(function () use ($date): void {
+            $attendanceDate = Carbon::parse($date)->startOfDay();
 
-        $dayName = strtolower(
-            $attendanceDate->format('l')
-        );
+            $dayName = strtolower(
+                $attendanceDate->format('l')
+            );
 
-        /*
-         * Get employee contracts applicable to this date.
-         *
-         * We don't depend on the current contract status because
-         * this method may also be used to sync historical dates.
-         */
-        $contracts = EmployeeContract::query()
-            ->whereDate('start_date', '<=', $date)
-            ->where(function ($query) use ($date): void {
-                $query
-                    ->whereNull('end_date')
-                    ->orWhereDate('end_date', '>=', $date);
-            })
-            ->whereNotNull('work_start_time')
-            ->whereNotNull('work_end_time')
-            ->whereNotNull('work_days')
-            ->whereJsonContains('work_days', $dayName)
-            ->get();
-
-        foreach ($contracts as $contract) {
-            $employeeId = (int) $contract->employee_id;
-
-            /*
-             * Check if employee already has an attendance record
-             * for this date.
-             */
-            $attendance = EmployeeAttendance::query()
-                ->where('employee_id', $employeeId)
-                ->whereDate('attendance_date', $date)
-                ->first();
-
-            /*
-             * Attendance already exists.
-             */
-            if ($attendance) {
-
-                /*
-                 * Employee checked in but forgot to check out.
-                 *
-                 * Never assume the checkout time.
-                 * Keep the record incomplete for HR review.
-                 */
-                if (
-                    $attendance->check_in_at !== null
-                    && $attendance->check_out_at === null
-                ) {
-                    $attendance->update([
-                        'status' =>
-                            EmployeeAttendanceStatusEnum::INCOMPLETE->value,
-                    ]);
-                }
-
-                /*
-                 * PRESENT / INCOMPLETE / LEAVE / ABSENT
-                 * already has a record, so don't create another one.
-                 */
-                continue;
-            }
-
-            /*
-             * Check approved employee leave.
-             *
-             * Leave has priority over absence.
-             */
-            $hasApprovedLeave = EmployeeLeave::query()
-                ->where('employee_id', $employeeId)
-                ->where(
-                    'status',
-                    EmployeeLeaveStatusEnum::APPROVED->value
-                )
+            $contracts = EmployeeContract::query()
                 ->whereDate('start_date', '<=', $date)
-                ->whereDate('end_date', '>=', $date)
-                ->exists();
+                ->where(function ($query) use ($date): void {
+                    $query
+                        ->whereNull('end_date')
+                        ->orWhereDate('end_date', '>=', $date);
+                })
+                ->whereNotNull('work_start_time')
+                ->whereNotNull('work_end_time')
+                ->whereNotNull('work_days')
+                ->whereJsonContains('work_days', $dayName)
+                ->get();
 
-            /*
-             * Employee is on approved leave.
-             */
-            if ($hasApprovedLeave) {
-                EmployeeAttendance::create([
-                    'employee_id' => $employeeId,
+            foreach ($contracts as $contract) {
+                $employeeId = (int) $contract->employee_id;
 
-                    'attendance_date' => $date,
+                $attendance = EmployeeAttendance::query()
+                    ->where(
+                        'employee_id',
+                        $employeeId
+                    )
+                    ->whereDate(
+                        'attendance_date',
+                        $date
+                    )
+                    ->first();
 
-                    'check_in_at' => null,
-                    'check_out_at' => null,
+                if ($attendance) {
+                    if (
+                        $attendance->check_in_at !== null
+                        && $attendance->check_out_at === null
+                    ) {
+                        $attendance->update([
+                            'status' =>
+                                EmployeeAttendanceStatusEnum::INCOMPLETE->value,
+                        ]);
+                    }
 
-                    'worked_minutes' => 0,
-
-                    'late_minutes' => 0,
-                    'excused_late_minutes' => 0,
-
-                    'early_leave_minutes' => 0,
-                    'excused_early_leave_minutes' => 0,
-
-                    'status' =>
-                        EmployeeAttendanceStatusEnum::LEAVE->value,
-
-                    'notes' => null,
-                ]);
-
-                continue;
-            }
-
-            /*
-             * Never mark future dates as absent.
-             */
-            if ($attendanceDate->isFuture()) {
-                continue;
-            }
-
-            /*
-             * If this is today, don't mark the employee absent
-             * before their scheduled work day has ended.
-             */
-            if ($attendanceDate->isToday()) {
-                $workEnd = Carbon::parse(
-                    $date . ' ' . $contract->work_end_time
-                );
-
-                if (now()->lessThan($workEnd)) {
                     continue;
                 }
+
+                $hasApprovedLeave = EmployeeLeave::query()
+                    ->where(
+                        'employee_id',
+                        $employeeId
+                    )
+                    ->where(
+                        'status',
+                        EmployeeLeaveStatusEnum::APPROVED->value
+                    )
+                    ->whereDate(
+                        'start_date',
+                        '<=',
+                        $date
+                    )
+                    ->whereDate(
+                        'end_date',
+                        '>=',
+                        $date
+                    )
+                    ->exists();
+
+                if ($hasApprovedLeave) {
+                    EmployeeAttendance::create([
+                        'employee_id' =>
+                            $employeeId,
+
+                        'attendance_date' =>
+                            $date,
+
+                        'check_in_at' =>
+                            null,
+
+                        'check_out_at' =>
+                            null,
+
+                        'worked_minutes' =>
+                            0,
+
+                        'late_minutes' =>
+                            0,
+
+                        'excused_late_minutes' =>
+                            0,
+
+                        'early_leave_minutes' =>
+                            0,
+
+                        'excused_early_leave_minutes' =>
+                            0,
+
+                        'status' =>
+                            EmployeeAttendanceStatusEnum::LEAVE->value,
+
+                        'notes' =>
+                            null,
+                    ]);
+
+                    continue;
+                }
+
+                if ($attendanceDate->isFuture()) {
+                    continue;
+                }
+
+                [
+                    ,
+                    $scheduledEnd,
+                ] = $this->buildScheduledRange(
+                    $date,
+                    (string) $contract->work_start_time,
+                    (string) $contract->work_end_time
+                );
+
+                /*
+                 * Do not mark ABSENT before the actual shift end.
+                 * This also supports overnight shifts.
+                 *
+                 * Example:
+                 * 2026-08-17 19:00 -> 2026-08-18 00:00
+                 */
+                if (now()->lessThan($scheduledEnd)) {
+                    continue;
+                }
+
+                EmployeeAttendance::create([
+                    'employee_id' =>
+                        $employeeId,
+
+                    'attendance_date' =>
+                        $date,
+
+                    'check_in_at' =>
+                        null,
+
+                    'check_out_at' =>
+                        null,
+
+                    'worked_minutes' =>
+                        0,
+
+                    'late_minutes' =>
+                        0,
+
+                    'excused_late_minutes' =>
+                        0,
+
+                    'early_leave_minutes' =>
+                        0,
+
+                    'excused_early_leave_minutes' =>
+                        0,
+
+                    'status' =>
+                        EmployeeAttendanceStatusEnum::ABSENT->value,
+
+                    'notes' =>
+                        null,
+                ]);
             }
-
-            /*
-             * No attendance + no approved leave + workday ended
-             * = absent.
-             */
-            EmployeeAttendance::create([
-                'employee_id' => $employeeId,
-
-                'attendance_date' => $date,
-
-                'check_in_at' => null,
-                'check_out_at' => null,
-
-                'worked_minutes' => 0,
-
-                'late_minutes' => 0,
-                'excused_late_minutes' => 0,
-
-                'early_leave_minutes' => 0,
-                'excused_early_leave_minutes' => 0,
-
-                'status' =>
-                    EmployeeAttendanceStatusEnum::ABSENT->value,
-
-                'notes' => null,
-            ]);
-        }
-    });
-}
+        });
+    }
 
     public function createEmployeeAttendance(
         array $data
     ): EmployeeAttendance {
         return DB::transaction(function () use ($data): EmployeeAttendance {
-            /*
-             * Important:
-             *
-             * syncDay() may already have generated an ABSENT record.
-             * If HR later corrects the attendance manually,
-             * we should update that row instead of creating a duplicate.
-             */
             $existingAttendance = EmployeeAttendance::query()
                 ->where(
                     'employee_id',
@@ -265,8 +269,20 @@ class EmployeeAttendanceService
                 $data['attendanceDate']
             );
 
-            $checkIn = $data['checkInAt'];
-            $checkOut = $data['checkOutAt'] ?? null;
+            $checkIn = $this->combineDateAndTime(
+                $data['attendanceDate'],
+                $data['checkInAt']
+            );
+
+            $checkOut = array_key_exists(
+                'checkOutAt',
+                $data
+            ) && $data['checkOutAt'] !== null
+                ? $this->combineCheckoutDateTime(
+                    $checkIn,
+                    $data['checkOutAt']
+                )
+                : null;
 
             $metrics = $this->calculateAttendanceMetrics(
                 employeeId: (int) $data['employeeId'],
@@ -277,13 +293,17 @@ class EmployeeAttendanceService
             );
 
             $attendanceData = [
-                'employee_id' => $data['employeeId'],
+                'employee_id' =>
+                    $data['employeeId'],
 
                 'attendance_date' =>
                     $data['attendanceDate'],
 
-                'check_in_at' => $checkIn,
-                'check_out_at' => $checkOut,
+                'check_in_at' =>
+                    $checkIn,
+
+                'check_out_at' =>
+                    $checkOut,
 
                 'worked_minutes' =>
                     $metrics['workedMinutes'],
@@ -300,16 +320,15 @@ class EmployeeAttendanceService
                 'excused_early_leave_minutes' =>
                     $metrics['excusedEarlyLeaveMinutes'],
 
-                'status' => $checkOut !== null
-                    ? EmployeeAttendanceStatusEnum::PRESENT->value
-                    : EmployeeAttendanceStatusEnum::INCOMPLETE->value,
+                'status' =>
+                    $checkOut !== null
+                        ? EmployeeAttendanceStatusEnum::PRESENT->value
+                        : EmployeeAttendanceStatusEnum::INCOMPLETE->value,
 
-                'notes' => $data['notes'] ?? null,
+                'notes' =>
+                    $data['notes'] ?? null,
             ];
 
-            /*
-             * Correct previously generated ABSENT.
-             */
             if ($existingAttendance) {
                 $existingAttendance->update(
                     $attendanceData
@@ -344,73 +363,101 @@ class EmployeeAttendanceService
         EmployeeAttendance $attendance,
         array $data
     ): EmployeeAttendance {
-        return DB::transaction(
-            function () use ($attendance, $data): EmployeeAttendance {
-                $checkIn = $data['checkInAt']
-                    ?? $attendance->check_in_at;
+        return DB::transaction(function () use (
+            $attendance,
+            $data
+        ): EmployeeAttendance {
+            $date = $attendance
+                ->attendance_date
+                ->format('Y-m-d');
 
-                $checkOut = array_key_exists(
-                    'checkOutAt',
-                    $data
+            $checkIn = array_key_exists(
+                'checkInAt',
+                $data
+            )
+                ? $this->combineDateAndTime(
+                    $date,
+                    $data['checkInAt']
                 )
-                    ? $data['checkOutAt']
-                    : $attendance->check_out_at;
-
-                $date = $attendance
-                    ->attendance_date
-                    ->format('Y-m-d');
-
-                $contract = $this->getContractForDate(
-                    (int) $attendance->employee_id,
-                    $date
+                : Carbon::parse(
+                    $attendance->check_in_at
                 );
 
-                $metrics = $this->calculateAttendanceMetrics(
-                    employeeId: (int) $attendance->employee_id,
-                    date: $date,
-                    checkIn: $checkIn,
-                    checkOut: $checkOut,
-                    contract: $contract
+            $checkOut = array_key_exists(
+                'checkOutAt',
+                $data
+            )
+                ? (
+                    $data['checkOutAt'] !== null
+                        ? $this->combineCheckoutDateTime(
+                            $checkIn,
+                            $data['checkOutAt']
+                        )
+                        : null
+                )
+                : (
+                    $attendance->check_out_at !== null
+                        ? Carbon::parse(
+                            $attendance->check_out_at
+                        )
+                        : null
                 );
 
-                $attendance->update([
-                    'check_in_at' => $checkIn,
-                    'check_out_at' => $checkOut,
+            $contract = $this->getContractForDate(
+                (int) $attendance->employee_id,
+                $date
+            );
 
-                    'worked_minutes' =>
-                        $metrics['workedMinutes'],
+            $metrics = $this->calculateAttendanceMetrics(
+                employeeId: (int) $attendance->employee_id,
+                date: $date,
+                checkIn: $checkIn,
+                checkOut: $checkOut,
+                contract: $contract
+            );
 
-                    'late_minutes' =>
-                        $metrics['lateMinutes'],
+            $attendance->update([
+                'check_in_at' =>
+                    $checkIn,
 
-                    'excused_late_minutes' =>
-                        $metrics['excusedLateMinutes'],
+                'check_out_at' =>
+                    $checkOut,
 
-                    'early_leave_minutes' =>
-                        $metrics['earlyLeaveMinutes'],
+                'worked_minutes' =>
+                    $metrics['workedMinutes'],
 
-                    'excused_early_leave_minutes' =>
-                        $metrics['excusedEarlyLeaveMinutes'],
+                'late_minutes' =>
+                    $metrics['lateMinutes'],
 
-                    'status' => $checkOut !== null
+                'excused_late_minutes' =>
+                    $metrics['excusedLateMinutes'],
+
+                'early_leave_minutes' =>
+                    $metrics['earlyLeaveMinutes'],
+
+                'excused_early_leave_minutes' =>
+                    $metrics['excusedEarlyLeaveMinutes'],
+
+                'status' =>
+                    $checkOut !== null
                         ? EmployeeAttendanceStatusEnum::PRESENT->value
                         : EmployeeAttendanceStatusEnum::INCOMPLETE->value,
 
-                    'notes' => array_key_exists(
+                'notes' =>
+                    array_key_exists(
                         'notes',
                         $data
                     )
                         ? $data['notes']
                         : $attendance->notes,
-                ]);
+            ]);
 
-                return $attendance
-                    ->refresh()
-                    ->load([
-                        'employee.jobTitle',
-                    ]);
-            }
-        );
+            return $attendance
+                ->refresh()
+                ->load([
+                    'employee.jobTitle',
+                ]);
+        });
     }
 
     public function deleteEmployeeAttendance(
@@ -451,8 +498,8 @@ class EmployeeAttendanceService
     private function calculateAttendanceMetrics(
         int $employeeId,
         string $date,
-        string $checkIn,
-        ?string $checkOut,
+        CarbonInterface $checkIn,
+        ?CarbonInterface $checkOut,
         ?EmployeeContract $contract
     ): array {
         $lateMinutes = 0;
@@ -463,9 +510,26 @@ class EmployeeAttendanceService
 
         $workedMinutes = null;
 
-        if ($contract?->work_start_time) {
+        $scheduledStart = null;
+        $scheduledEnd = null;
+
+        if (
+            $contract?->work_start_time
+            && $contract?->work_end_time
+        ) {
+            [
+                $scheduledStart,
+                $scheduledEnd,
+            ] = $this->buildScheduledRange(
+                $date,
+                (string) $contract->work_start_time,
+                (string) $contract->work_end_time
+            );
+        }
+
+        if ($scheduledStart !== null) {
             $lateMinutes = $this->calculateLateMinutes(
-                $contract->work_start_time,
+                $scheduledStart,
                 $checkIn
             );
 
@@ -483,10 +547,10 @@ class EmployeeAttendanceService
                 $checkOut
             );
 
-            if ($contract?->work_end_time) {
+            if ($scheduledEnd !== null) {
                 $earlyLeaveMinutes =
                     $this->calculateEarlyLeaveMinutes(
-                        $contract->work_end_time,
+                        $scheduledEnd,
                         $checkOut
                     );
 
@@ -500,9 +564,12 @@ class EmployeeAttendanceService
         }
 
         return [
-            'workedMinutes' => $workedMinutes,
+            'workedMinutes' =>
+                $workedMinutes,
 
-            'lateMinutes' => $lateMinutes,
+            'lateMinutes' =>
+                $lateMinutes,
+
             'excusedLateMinutes' =>
                 $excusedLateMinutes,
 
@@ -515,43 +582,52 @@ class EmployeeAttendanceService
     }
 
     private function calculateMinutes(
-        string $from,
-        string $to
+        CarbonInterface $from,
+        CarbonInterface $to
     ): int {
-        return (int) Carbon::parse($from)
-            ->diffInMinutes(
-                Carbon::parse($to)
-            );
+        if ($to->lessThan($from)) {
+            return 0;
+        }
+
+        return (int) $from->diffInMinutes(
+            $to
+        );
     }
 
     private function calculateLateMinutes(
-        string $expectedStart,
-        string $actualStart
+        CarbonInterface $expectedStart,
+        CarbonInterface $actualStart
     ): int {
-        $expected = Carbon::parse($expectedStart);
-        $actual = Carbon::parse($actualStart);
-
-        if ($actual->lessThanOrEqualTo($expected)) {
+        if (
+            $actualStart->lessThanOrEqualTo(
+                $expectedStart
+            )
+        ) {
             return 0;
         }
 
-        return (int) $expected
-            ->diffInMinutes($actual);
+        return (int) $expectedStart
+            ->diffInMinutes(
+                $actualStart
+            );
     }
 
     private function calculateEarlyLeaveMinutes(
-        string $expectedEnd,
-        string $actualEnd
+        CarbonInterface $expectedEnd,
+        CarbonInterface $actualEnd
     ): int {
-        $expected = Carbon::parse($expectedEnd);
-        $actual = Carbon::parse($actualEnd);
-
-        if ($actual->greaterThanOrEqualTo($expected)) {
+        if (
+            $actualEnd->greaterThanOrEqualTo(
+                $expectedEnd
+            )
+        ) {
             return 0;
         }
 
-        return (int) $actual
-            ->diffInMinutes($expected);
+        return (int) $actualEnd
+            ->diffInMinutes(
+                $expectedEnd
+            );
     }
 
     private function calculateExcusedLateMinutes(
@@ -626,15 +702,18 @@ class EmployeeAttendanceService
         User $user
     ): EmployeeAttendance {
         return DB::transaction(function () use ($user): EmployeeAttendance {
+            $employee = $this->getEmployeeFromUser(
+                $user
+            );
 
-            $employee = $this->getEmployeeFromUser($user);
+            $checkIn = now();
 
-            $date = now()->toDateString();
-            $checkIn = now()->format('H:i:s');
-
-            $contract = $this->getContractForDate(
+            [
+                'attendanceDate' => $attendanceDate,
+                'contract' => $contract,
+            ] = $this->resolveAttendanceDateForCheckIn(
                 $employee->id,
-                $date
+                $checkIn
             );
 
             if (! $contract) {
@@ -643,76 +722,73 @@ class EmployeeAttendanceService
 
             $this->ensureEmployeeHasNoApprovedLeave(
                 $employee->id,
-                $date
+                $attendanceDate
             );
 
-            $attendance = EmployeeAttendance::query()
-                ->where('employee_id', $employee->id)
-                ->whereDate('attendance_date', $date)
+            /*
+             * Prevent duplicate open attendance even across midnight.
+             */
+            $openAttendance = EmployeeAttendance::query()
+                ->where(
+                    'employee_id',
+                    $employee->id
+                )
+                ->whereNotNull(
+                    'check_in_at'
+                )
+                ->whereNull(
+                    'check_out_at'
+                )
+                ->lockForUpdate()
+                ->latest('check_in_at')
                 ->first();
 
-            /*
-            * Existing attendance record.
-            */
-            if ($attendance) {
+            if ($openAttendance) {
+                throw new EmployeeAlreadyCheckedInException();
+            }
 
-                if ($attendance->check_in_at !== null) {
-                    throw new EmployeeAlreadyCheckedInException();
-                }
+            $attendance = EmployeeAttendance::query()
+                ->where(
+                    'employee_id',
+                    $employee->id
+                )
+                ->whereDate(
+                    'attendance_date',
+                    $attendanceDate
+                )
+                ->lockForUpdate()
+                ->first();
 
-                /*
-                * If ABSENT was previously generated by syncDay,
-                * convert the same row to an actual check-in.
-                */
-                $metrics = $this->calculateAttendanceMetrics(
-                    employeeId: $employee->id,
-                    date: $date,
-                    checkIn: $checkIn,
-                    checkOut: null,
-                    contract: $contract
-                );
-
-                $attendance->update([
-                    'check_in_at' => $checkIn,
-                    'check_out_at' => null,
-
-                    'worked_minutes' => null,
-
-                    'late_minutes' =>
-                        $metrics['lateMinutes'],
-
-                    'excused_late_minutes' =>
-                        $metrics['excusedLateMinutes'],
-
-                    'early_leave_minutes' => 0,
-                    'excused_early_leave_minutes' => 0,
-
-                    'status' =>
-                        EmployeeAttendanceStatusEnum::INCOMPLETE->value,
-                ]);
-
-                return $attendance
-                    ->refresh()
-                    ->load('employee.jobTitle');
+            if (
+                $attendance
+                && $attendance->check_in_at !== null
+            ) {
+                throw new EmployeeAlreadyCheckedInException();
             }
 
             $metrics = $this->calculateAttendanceMetrics(
                 employeeId: $employee->id,
-                date: $date,
+                date: $attendanceDate,
                 checkIn: $checkIn,
                 checkOut: null,
                 contract: $contract
             );
 
-            $attendance = EmployeeAttendance::create([
-                'employee_id' => $employee->id,
+            $attendanceData = [
+                'employee_id' =>
+                    $employee->id,
 
-                'attendance_date' => $date,
+                'attendance_date' =>
+                    $attendanceDate,
 
-                'check_in_at' => $checkIn,
-                'check_out_at' => null,
+                'check_in_at' =>
+                    $checkIn,
 
-                'worked_minutes' => null,
+                'check_out_at' =>
+                    null,
+
+                'worked_minutes' =>
+                    null,
 
                 'late_minutes' =>
                     $metrics['lateMinutes'],
@@ -720,12 +796,30 @@ class EmployeeAttendanceService
                 'excused_late_minutes' =>
                     $metrics['excusedLateMinutes'],
 
-                'early_leave_minutes' => 0,
-                'excused_early_leave_minutes' => 0,
+                'early_leave_minutes' =>
+                    0,
+
+                'excused_early_leave_minutes' =>
+                    0,
 
                 'status' =>
                     EmployeeAttendanceStatusEnum::INCOMPLETE->value,
+            ];
 
+            if ($attendance) {
+                $attendance->update(
+                    $attendanceData
+                );
+
+                return $attendance
+                    ->refresh()
+                    ->load(
+                        'employee.jobTitle'
+                    );
+            }
+
+            $attendance = EmployeeAttendance::create([
+                ...$attendanceData,
                 'notes' => null,
             ]);
 
@@ -739,62 +833,87 @@ class EmployeeAttendanceService
         User $user
     ): EmployeeAttendance {
         return DB::transaction(function () use ($user): EmployeeAttendance {
+            $employee = $this->getEmployeeFromUser(
+                $user
+            );
 
-            $employee = $this->getEmployeeFromUser($user);
-
-            $date = now()->toDateString();
-
+            /*
+             * Do NOT filter by today's date.
+             *
+             * The attendance may belong to yesterday when the shift
+             * crosses midnight.
+             */
             $attendance = EmployeeAttendance::query()
-                ->where('employee_id', $employee->id)
-                ->whereDate('attendance_date', $date)
+                ->where(
+                    'employee_id',
+                    $employee->id
+                )
+                ->whereNotNull(
+                    'check_in_at'
+                )
+                ->whereNull(
+                    'check_out_at'
+                )
+                ->lockForUpdate()
+                ->latest('check_in_at')
                 ->first();
 
-            if (
-                ! $attendance
-                || $attendance->check_in_at === null
-            ) {
+            if (! $attendance) {
+                $latestAttendance = EmployeeAttendance::query()
+                    ->where(
+                        'employee_id',
+                        $employee->id
+                    )
+                    ->whereNotNull(
+                        'check_in_at'
+                    )
+                    ->latest('check_in_at')
+                    ->first();
+
+                if (
+                    $latestAttendance
+                    && $latestAttendance->check_out_at !== null
+                ) {
+                    throw new EmployeeAlreadyCheckedOutException();
+                }
+
                 throw new EmployeeNotCheckedInException();
             }
 
-            if ($attendance->check_out_at !== null) {
-                throw new EmployeeAlreadyCheckedOutException();
-            }
+            $attendanceDate = $attendance
+                ->attendance_date
+                ->format('Y-m-d');
 
             $contract = $this->getContractForDate(
                 $employee->id,
-                $date
+                $attendanceDate
             );
 
             if (! $contract) {
                 throw new EmployeeHasNoActiveContractException();
             }
 
-            $checkIn = substr(
-                (string) $attendance->check_in_at,
-                0,
-                8
+            $checkIn = Carbon::parse(
+                $attendance->check_in_at
             );
 
-            $checkOut = now()->format('H:i:s');
+            $checkOut = now();
 
             $metrics = $this->calculateAttendanceMetrics(
                 employeeId: $employee->id,
-                date: $date,
+                date: $attendanceDate,
                 checkIn: $checkIn,
                 checkOut: $checkOut,
                 contract: $contract
             );
 
             $attendance->update([
-                'check_out_at' => $checkOut,
+                'check_out_at' =>
+                    $checkOut,
 
                 'worked_minutes' =>
                     $metrics['workedMinutes'],
 
-                /*
-                * Recalculate everything again in case
-                * permissions were approved after check-in.
-                */
                 'late_minutes' =>
                     $metrics['lateMinutes'],
 
@@ -813,14 +932,48 @@ class EmployeeAttendanceService
 
             return $attendance
                 ->refresh()
-                ->load('employee.jobTitle');
+                ->load(
+                    'employee.jobTitle'
+                );
         });
     }
 
     public function today(
         User $user
     ): array {
-        $employee = $this->getEmployeeFromUser($user);
+        $employee = $this->getEmployeeFromUser(
+            $user
+        );
+
+        /*
+         * Open overnight attendance always has priority.
+         */
+        $openAttendance = EmployeeAttendance::query()
+            ->where(
+                'employee_id',
+                $employee->id
+            )
+            ->whereNotNull(
+                'check_in_at'
+            )
+            ->whereNull(
+                'check_out_at'
+            )
+            ->latest('check_in_at')
+            ->first();
+
+        if ($openAttendance) {
+            return [
+                'attendance' =>
+                    $openAttendance,
+
+                'canCheckIn' =>
+                    false,
+
+                'canCheckOut' =>
+                    true,
+            ];
+        }
 
         $attendance = EmployeeAttendance::query()
             ->where(
@@ -834,7 +987,8 @@ class EmployeeAttendanceService
             ->first();
 
         return [
-            'attendance' => $attendance,
+            'attendance' =>
+                $attendance,
 
             'canCheckIn' =>
                 ! $attendance
@@ -846,6 +1000,7 @@ class EmployeeAttendanceService
                 && $attendance->check_out_at === null,
         ];
     }
+
     private function getEmployeeFromUser(
         User $user
     ): Employee {
@@ -857,6 +1012,7 @@ class EmployeeAttendanceService
 
         return $employee;
     }
+
     private function ensureEmployeeHasNoApprovedLeave(
         int $employeeId,
         string $date
@@ -885,5 +1041,139 @@ class EmployeeAttendanceService
         if ($exists) {
             throw new EmployeeOnApprovedLeaveException();
         }
+    }
+
+    /**
+     * Resolve which attendanceDate should own a real-time check-in.
+     *
+     * If the current time falls inside yesterday's overnight shift,
+     * attendanceDate is yesterday.
+     *
+     * Otherwise it belongs to today.
+     */
+    private function resolveAttendanceDateForCheckIn(
+        int $employeeId,
+        CarbonInterface $checkIn
+    ): array {
+        $today = $checkIn->toDateString();
+        $yesterday = $checkIn
+            ->copy()
+            ->subDay()
+            ->toDateString();
+
+        $yesterdayContract = $this->getContractForDate(
+            $employeeId,
+            $yesterday
+        );
+
+        if (
+            $yesterdayContract?->work_start_time
+            && $yesterdayContract?->work_end_time
+        ) {
+            [
+                $yesterdayStart,
+                $yesterdayEnd,
+            ] = $this->buildScheduledRange(
+                $yesterday,
+                (string) $yesterdayContract->work_start_time,
+                (string) $yesterdayContract->work_end_time
+            );
+
+            $isOvernight =
+                $yesterdayStart->toDateString()
+                !== $yesterdayEnd->toDateString();
+
+            if (
+                $isOvernight
+                && $checkIn->lessThanOrEqualTo(
+                    $yesterdayEnd
+                )
+            ) {
+                return [
+                    'attendanceDate' =>
+                        $yesterday,
+
+                    'contract' =>
+                        $yesterdayContract,
+                ];
+            }
+        }
+
+        return [
+            'attendanceDate' =>
+                $today,
+
+            'contract' =>
+                $this->getContractForDate(
+                    $employeeId,
+                    $today
+                ),
+        ];
+    }
+
+    /**
+     * Build the expected shift range from attendanceDate + contract times.
+     *
+     * If end <= start, the shift ends on the next calendar day.
+     */
+    private function buildScheduledRange(
+        string $attendanceDate,
+        string $startTime,
+        string $endTime
+    ): array {
+        $scheduledStart = Carbon::parse(
+            "{$attendanceDate} {$startTime}"
+        );
+
+        $scheduledEnd = Carbon::parse(
+            "{$attendanceDate} {$endTime}"
+        );
+
+        if (
+            $scheduledEnd->lessThanOrEqualTo(
+                $scheduledStart
+            )
+        ) {
+            $scheduledEnd->addDay();
+        }
+
+        return [
+            $scheduledStart,
+            $scheduledEnd,
+        ];
+    }
+
+    private function combineDateAndTime(
+        string $attendanceDate,
+        string $time
+    ): Carbon {
+        return Carbon::parse(
+            "{$attendanceDate} {$time}"
+        );
+    }
+
+    /**
+     * If checkout clock time <= check-in clock time,
+     * checkout belongs to the next day.
+     */
+    private function combineCheckoutDateTime(
+        CarbonInterface $checkIn,
+        string $checkOutTime
+    ): Carbon {
+        $checkOut = Carbon::parse(
+            $checkIn->format('Y-m-d')
+            . ' '
+            . $checkOutTime
+        );
+
+        if (
+            $checkOut->lessThanOrEqualTo(
+                $checkIn
+            )
+        ) {
+            $checkOut->addDay();
+        }
+
+        return $checkOut;
     }
 }

@@ -26,7 +26,7 @@ class StoreEmployeeAttendanceRequest extends FormRequest
 
             'attendanceDate' => [
                 'required',
-                'date',
+                'date_format:Y-m-d',
             ],
 
             'checkInAt' => [
@@ -36,8 +36,7 @@ class StoreEmployeeAttendanceRequest extends FormRequest
 
             'checkOutAt' => [
                 'nullable',
-                'date_format:H:i',
-                'after:checkInAt',
+                 'date_format:H:i',
             ],
 
             'notes' => [

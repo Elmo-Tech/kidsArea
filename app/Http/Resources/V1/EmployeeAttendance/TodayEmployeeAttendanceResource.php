@@ -16,20 +16,9 @@ class TodayEmployeeAttendanceResource extends JsonResource
                 ? [
                     'id' => $attendance->id,
 
-                    'attendanceDate' =>
-                        $attendance
-                            ->attendance_date
-                            ?->format('Y-m-d'),
 
-                    'checkInAt' =>
-                        $this->formatTime(
-                            $attendance->check_in_at
-                        ),
-
-                    'checkOutAt' =>
-                        $this->formatTime(
-                            $attendance->check_out_at
-                        ),
+                    'checkInAt' => $this->check_in_at,
+                    'checkOutAt' => $this->check_out_at,
 
                     'workedMinutes' =>
                         $attendance->worked_minutes,

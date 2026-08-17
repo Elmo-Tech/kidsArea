@@ -18,6 +18,12 @@ class UpdateEmployeeAttendanceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'attendanceDate' => [
+                'sometimes',
+                'required',
+                'date_format:Y-m-d',
+            ],
+
             'checkInAt' => [
                 'sometimes',
                 'required',
