@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Activity;
 
+use App\Enums\ActivityMembershipStatusEnum;
 use App\Enums\ActivityPricingTypeEnum;
+use App\Enums\ActivitySessionStatusEnum;
 use App\Exceptions\Activity\InvalidActivityMembershipPricingPlanException;
 use App\Models\ActivityMembership;
 use App\Models\ActivityPricingPlan;
+use App\Models\ActivitySession;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -117,11 +120,16 @@ class ActivityMembershipService
                     $pricingPlan->price,
 
                 'status' =>
-                    $data['status'] ?? 1,
+                    $data['status']
+                    ?? ActivityMembershipStatusEnum::ACTIVE->value,
 
                 'notes' =>
                     $data['notes'] ?? null,
             ]);
+
+            $this->syncSubscriptionSessions(
+                $membership
+            );
 
             return $membership->load([
                 'child',
@@ -149,6 +157,10 @@ class ActivityMembershipService
             $membership,
             $data
         ): ActivityMembership {
+            $membership->loadMissing(
+                'pricingPlan'
+            );
+
             $startDate = array_key_exists(
                 'startDate',
                 $data
@@ -193,13 +205,17 @@ class ActivityMembershipService
                         : $membership->notes,
             ]);
 
-            return $membership
-                ->refresh()
-                ->load([
-                    'child',
-                    'activity',
-                    'pricingPlan',
-                ]);
+            $membership->refresh();
+
+            $this->syncSubscriptionSessions(
+                $membership
+            );
+
+            return $membership->load([
+                'child',
+                'activity',
+                'pricingPlan',
+            ]);
         });
     }
 
@@ -226,6 +242,65 @@ class ActivityMembershipService
         ) {
             throw new InvalidActivityMembershipPricingPlanException();
         }
+    }
+
+    private function syncSubscriptionSessions(
+        ActivityMembership $membership
+    ): void {
+        $membership->loadMissing(
+            'pricingPlan'
+        );
+
+        if (
+            $membership->pricingPlan->type !==
+            ActivityPricingTypeEnum::SUBSCRIPTION
+        ) {
+            return;
+        }
+
+        if (
+            $membership->status !==
+            ActivityMembershipStatusEnum::ACTIVE
+        ) {
+            return;
+        }
+
+        if ($membership->end_date === null) {
+            return;
+        }
+
+        ActivitySession::query()
+            ->where(
+                'activity_id',
+                $membership->activity_id
+            )
+            ->whereDate(
+                'session_date',
+                '>=',
+                $membership->start_date
+            )
+            ->whereDate(
+                'session_date',
+                '<=',
+                $membership->end_date
+            )
+            ->where(
+                'status',
+                '!=',
+                ActivitySessionStatusEnum::CANCELLED->value
+            )
+            ->chunkById(
+                100,
+                function ($sessions) use ($membership): void {
+                    foreach ($sessions as $session) {
+                        $session
+                            ->children()
+                            ->syncWithoutDetaching([
+                                $membership->child_id,
+                            ]);
+                    }
+                }
+            );
     }
 
     private function calculateSubscriptionEndDate(

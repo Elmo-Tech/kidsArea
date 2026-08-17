@@ -31,8 +31,7 @@ class AllActivityScheduleResource extends JsonResource
             'endTime' =>
                 $this->end_time,
 
-            'weekDays' =>
-                $this->week_days,
+            //'weekDays' =>$this->week_days,
 
             'status' =>
                 $this->status->value,

@@ -45,6 +45,7 @@ return [
 
     'activity_usage_visit_not_open' =>
         'لا يمكن إضافة استخدام إلى زيارة غير مفتوحة.',
+    'schedule_already_exists' => 'يوجد جدول مواعيد مطابق لهذا النشاط بالفعل.',
 
 
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\V1\Activity;
 
+use App\Http\Resources\V1\ActivityPricingPlan\ActivityPricingPlanResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,10 +27,7 @@ class ActivityResource extends JsonResource
                 ),
 
             'createdAt' =>
-                $this->created_at?->format('Y-m-d H:i:s'),
-
-            'updatedAt' =>
-                $this->updated_at?->format('Y-m-d H:i:s'),
+                $this->created_at
         ];
     }
 }
