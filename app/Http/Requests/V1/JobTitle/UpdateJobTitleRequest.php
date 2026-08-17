@@ -52,7 +52,7 @@ class UpdateJobTitleRequest extends FormRequest
     {
         throw new HttpResponseException(
             ApiResponse::error(
-                __('messages.validation_failed'),
+                "",
                 $validator->errors()->toArray(),
                 HttpStatusCode::UNPROCESSABLE_ENTITY
             )

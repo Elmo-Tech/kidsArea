@@ -7,80 +7,80 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Enums\HttpStatusCode;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\V1\ActivitySchedule\StoreActivityScheduleRequest;
-use App\Http\Requests\V1\ActivitySchedule\UpdateActivityScheduleRequest;
-use App\Http\Resources\V1\ActivitySchedule\ActivityScheduleCollection;
-use App\Http\Resources\V1\ActivitySchedule\ActivityScheduleResource;
-use App\Models\ActivitySchedule;
-use App\Services\Activity\ActivityScheduleService;
+use App\Http\Requests\V1\ActivitySession\StoreActivitySessionRequest;
+use App\Http\Requests\V1\ActivitySession\UpdateActivitySessionRequest;
+use App\Http\Resources\V1\ActivitySession\ActivitySessionCollection;
+use App\Http\Resources\V1\ActivitySession\ActivitySessionResource;
+use App\Models\ActivitySession;
+use App\Services\Activity\ActivitySessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-final class ActivityScheduleController extends Controller
+final class ActivitySessionController extends Controller
 {
     public function __construct(
-        private readonly ActivityScheduleService $activityScheduleService
+        private readonly ActivitySessionService $activitySessionService
     ) {
     }
 
     public function index(
         Request $request
     ): JsonResponse {
-        $schedules = $this->activityScheduleService
+        $sessions = $this->activitySessionService
             ->all($request);
 
         return ApiResponse::success(
-            new ActivityScheduleCollection($schedules)
+            new ActivitySessionCollection($sessions)
         );
     }
 
     public function store(
-        StoreActivityScheduleRequest $request
+        StoreActivitySessionRequest $request
     ): JsonResponse {
-        $schedule = $this->activityScheduleService
-            ->createSchedule(
+        $session = $this->activitySessionService
+            ->createSession(
                 $request->validated()
             );
 
         return ApiResponse::success(
-            new ActivityScheduleResource($schedule),
+            new ActivitySessionResource($session),
             __('messages.created_successfully'),
             HttpStatusCode::CREATED
         );
     }
 
     public function show(
-        ActivitySchedule $schedule
+        ActivitySession $session
     ): JsonResponse {
-        $schedule = $this->activityScheduleService
-            ->editSchedule($schedule);
+        $session = $this->activitySessionService
+            ->editSession($session);
 
         return ApiResponse::success(
-            new ActivityScheduleResource($schedule)
+            new ActivitySessionResource($session)
         );
     }
 
     public function update(
-        UpdateActivityScheduleRequest $request,
-        ActivitySchedule $schedule
+        UpdateActivitySessionRequest $request,
+        ActivitySession $session
     ): JsonResponse {
-        $schedule = $this->activityScheduleService
-            ->updateSchedule(
-                $schedule,
+        $session = $this->activitySessionService
+            ->updateSession(
+                $session,
                 $request->validated()
             );
 
         return ApiResponse::success(
-            new ActivityScheduleResource($schedule),
+            new ActivitySessionResource($session),
             __('messages.updated_successfully')
         );
     }
 
     public function destroy(
-        ActivitySchedule $schedule
+        ActivitySession $session
     ): JsonResponse {
-        $this->activityScheduleService
-            ->deleteSchedule($schedule);
+        $this->activitySessionService
+            ->deleteSession($session);
 
         return ApiResponse::success(
             null,

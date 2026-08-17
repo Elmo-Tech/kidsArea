@@ -12,7 +12,7 @@ class LeaveTypeCollection extends ResourceCollection
     public function toArray(Request $request): array
     {
         return [
-            'data' => $this->collection,
+            'leaveTypes' => $this->collection,
 
             'pagination' => [
                 'perPage' => $this->resource->perPage(),

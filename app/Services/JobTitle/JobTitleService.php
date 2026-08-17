@@ -3,6 +3,7 @@
 
 namespace App\Services\JobTitle;
 
+use App\Exceptions\Employee\JobTitleHasEmployeesException;
 use App\Models\JobTitle;
 use App\QueryFilters\JobTitleSearchFilter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -78,6 +79,9 @@ final class JobTitleService
      */
     public function deleteJobTitle(JobTitle $jobTitle): bool
     {
+        if ($jobTitle->employees()->exists()) {
+            throw new JobTitleHasEmployeesException();
+        }
         return (bool) $jobTitle->delete();
     }
 }

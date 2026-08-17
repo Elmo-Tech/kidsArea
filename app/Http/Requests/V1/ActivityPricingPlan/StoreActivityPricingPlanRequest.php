@@ -1,8 +1,10 @@
 <?php
 
-namespace App\Http\Requests\V1\Activity;
+namespace App\Http\Requests\V1\ActivityPricingPlan;
 
+use App\Enums\ActivityPricingTypeEnum;
 use App\Enums\ActivityStatusEnum;
+use App\Enums\DurationUnitEnum;
 use App\Enums\HttpStatusCode;
 use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
@@ -10,7 +12,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
-class StoreActivityRequest extends FormRequest
+class StoreActivityPricingPlanRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -20,17 +22,56 @@ class StoreActivityRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'activityId' => [
+                'required',
+                'integer',
+                'exists:activities,id',
+            ],
+
             'name' => [
                 'required',
-                'unique:activities,name',
                 'string',
                 'max:255',
             ],
 
-            'description' => [
+            'type' => [
+                'required',
+                Rule::enum(ActivityPricingTypeEnum::class),
+            ],
+
+            'price' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+
+            'durationValue' => [
+                Rule::requiredIf(
+                    (int) $this->input('type') ===
+                    ActivityPricingTypeEnum::SUBSCRIPTION->value
+                ),
                 'nullable',
-                'string',
-                'max:5000',
+                'integer',
+                'min:1',
+            ],
+
+            'durationUnit' => [
+                Rule::requiredIf(
+                    (int) $this->input('type') ===
+                    ActivityPricingTypeEnum::SUBSCRIPTION->value
+                ),
+                'nullable',
+                Rule::enum(DurationUnitEnum::class),
+            ],
+
+            'sessionsCount' => [
+                Rule::requiredIf(
+                    (int) $this->input('type') ===
+                    ActivityPricingTypeEnum::PACKAGE->value
+                ),
+                'nullable',
+                'integer',
+                'min:1',
             ],
 
             'status' => [

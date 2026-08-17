@@ -8,7 +8,7 @@ use App\Enums\ActivitySessionStatusEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 class ActivitySession extends Model
 {
     protected $fillable = [
@@ -60,6 +60,13 @@ class ActivitySession extends Model
         return $this->belongsToMany(
             Child::class,
             'activity_session_children'
+        );
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(
+            ActivityAttendance::class
         );
     }
 }

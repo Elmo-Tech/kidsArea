@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Enums\PayrollPaymentStatusEnum;
 use App\Enums\SalaryTypeEnum;
 use App\Models\EmployeePayroll;
 use App\Models\PayrollPeriod;
 
-class PayrollSummaryService
-{
 class PayrollSummaryService
 {
     public function getSummary(

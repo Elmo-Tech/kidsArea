@@ -26,7 +26,7 @@ return new class extends Migration
                 $table->unique([
                     'activity_session_id',
                     'employee_id',
-                ]);
+                ], 'activity_session_employees_unique');
             }
         );
     }

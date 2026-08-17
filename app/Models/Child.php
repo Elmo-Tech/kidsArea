@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Child extends Model
 {
@@ -28,6 +29,20 @@ class Child extends Model
         return $this->belongsToMany(
             ActivitySession::class,
             'activity_session_children'
+        );
+    }
+
+    public function activityMemberships(): HasMany
+    {
+        return $this->hasMany(
+            ActivityMembership::class
+        );
+    }
+
+    public function activityAttendances(): HasMany
+    {
+        return $this->hasMany(
+            ActivityAttendance::class
         );
     }
 }

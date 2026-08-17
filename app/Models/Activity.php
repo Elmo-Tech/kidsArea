@@ -33,4 +33,11 @@ class Activity extends Model
             ActivityPricingPlan::class
         );
     }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(
+            ActivityMembership::class
+        );
+    }
 }

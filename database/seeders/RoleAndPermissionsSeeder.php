@@ -122,6 +122,24 @@ class RoleAndPermissionsSeeder extends Seeder
             'payroll-reports.show',
             'payroll-reports.export',
 
+            // Payroll Payments
+            'payroll-payments.index',
+            'payroll-payments.store',
+
+            // Activities
+            'activities.index',
+            'activities.show',
+            'activities.store',
+            'activities.update',
+            'activities.destroy',
+
+            // Activity Pricing Plans
+            'activity-pricing-plans.index',
+            'activity-pricing-plans.show',
+            'activity-pricing-plans.store',
+            'activity-pricing-plans.update',
+            'activity-pricing-plans.destroy',
+
             // Activity Schedules
             'activity-schedules.index',
             'activity-schedules.show',
@@ -136,6 +154,57 @@ class RoleAndPermissionsSeeder extends Seeder
             'activity-sessions.store',
             'activity-sessions.update',
             'activity-sessions.destroy',
+
+            // Activity Memberships
+            'activity-memberships.index',
+            'activity-memberships.show',
+            'activity-memberships.store',
+            'activity-memberships.update',
+            'activity-memberships.destroy',
+
+            // Activity Attendances
+            'activity-attendances.index',
+            'activity-attendances.show',
+            'activity-attendances.store',
+            'activity-attendances.update',
+            'activity-attendances.destroy',
+
+            // Activity Usages
+            'activity-usages.index',
+            'activity-usages.show',
+            'activity-usages.start',
+            'activity-usages.pause',
+            'activity-usages.resume',
+            'activity-usages.change-type',
+            'activity-usages.close',
+            'activity-usages.cancel',
+
+            // Visits
+            'visits.index',
+            'visits.show',
+            'visits.store',
+            'visits.close',
+            'visits.cancel',
+
+            // Inventory Items
+            'inventory-items.index',
+            'inventory-items.show',
+            'inventory-items.store',
+            'inventory-items.update',
+            'inventory-items.destroy',
+
+            // Stock Movements
+            'stock-movements.index',
+            'stock-movements.show',
+            'stock-movements.store',
+
+            // Cafe Products
+            'cafe-products.index',
+            'cafe-products.show',
+            'cafe-products.store',
+            'cafe-products.update',
+            'cafe-products.destroy',
+
         ];
 
         foreach ($permissions as $permissionName) {
