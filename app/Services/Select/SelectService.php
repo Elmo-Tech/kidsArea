@@ -54,9 +54,11 @@ class SelectService
         $selectServiceMap = [
             'users' => ['getAllUsers', UserSelectService::class],
             'employees' => ['getAllEmployees', EmployeeSelectService::class],
+            'employeesWithJob' => ['getAllEmployeesWithJob', EmployeeSelectService::class],
             'departments' => ['getAllDepartments', DepartmentSelectService::class],
             'jobTitles' => ['getAllJobTitles', JobTitleSelectService::class],
             'leaveTypes' => ['getAllLeaveTypes', LeaveSelectService::class],
+            'children' => ['getAllChildren', ChildSelectService::class],
         ];
 
         $paramValue = null; // Initialize paramValue
