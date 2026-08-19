@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests\V1\Visit;
+namespace App\Http\Requests\V1\CafeOrder;
 
 use App\Enums\HttpStatusCode;
 use App\Helpers\ApiResponse;
@@ -10,7 +10,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class StoreVisitRequest extends FormRequest
+class StoreCafeOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -20,33 +20,47 @@ class StoreVisitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'childId' => [
+            'visitId' => [
                 'nullable',
                 'integer',
-                'exists:children,id',
-                'required_without:childName',
+                'exists:visits,id',
             ],
 
-            'childName' => [
-                'nullable',
-                'string',
-                'max:255',
-                'required_without:childId',
-                'prohibited_with:childId',
-            ],
-
-            'childPhone' => [
-                'nullable',
-                'string',
-                'max:30',
-                'required_without:childId',
-                'prohibited_with:childId',
+            'discount' => [
+                'sometimes',
+                'numeric',
+                'min:0',
             ],
 
             'notes' => [
                 'nullable',
                 'string',
                 'max:5000',
+            ],
+
+            'items' => [
+                'required',
+                'array',
+                'min:1',
+            ],
+
+            'items.*.cafeProductId' => [
+                'required',
+                'integer',
+                'distinct',
+                'exists:cafe_products,id',
+            ],
+
+            'items.*.quantity' => [
+                'required',
+                'integer',
+                'min:1',
+            ],
+
+            'items.*.notes' => [
+                'nullable',
+                'string',
+                'max:2000',
             ],
         ];
     }

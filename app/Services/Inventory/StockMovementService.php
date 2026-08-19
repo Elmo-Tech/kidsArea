@@ -30,7 +30,7 @@ class StockMovementService
                 'inventoryItem',
                 'createdBy',
             ])
-            ->allowedFilters(
+            ->allowedFilters([
                 AllowedFilter::exact(
                     'inventoryItemId',
                     'inventory_item_id'
@@ -44,7 +44,7 @@ class StockMovementService
                     'sourceType',
                     'source_type'
                 ),
-            )
+            ])
             ->latest('movement_at')
             ->latest('id')
             ->paginate($perPage);
@@ -55,24 +55,63 @@ class StockMovementService
         ?string $sourceType = 'manual',
         ?int $sourceId = null
     ): StockMovement {
-        return DB::transaction(function () use (
-            $data,
-            $sourceType,
-            $sourceId
-        ): StockMovement {
+        $inventoryItem = InventoryItem::query()
+            ->findOrFail(
+                $data['inventoryItemId']
+            );
 
+        $type = StockMovementTypeEnum::from(
+            (int) $data['type']
+        );
+
+        return $this->createSystemMovement(
+            inventoryItem: $inventoryItem,
+            type: $type,
+            quantity: (float) $data['quantity'],
+            unitCost: array_key_exists('unitCost', $data)
+                ? (float) $data['unitCost']
+                : null,
+            sourceType: $sourceType,
+            sourceId: $sourceId,
+            movementAt: $data['movementAt'] ?? null,
+            notes: $data['notes'] ?? null
+        );
+    }
+
+    public function createSystemMovement(
+        InventoryItem $inventoryItem,
+        StockMovementTypeEnum $type,
+        float $quantity,
+        ?float $unitCost = null,
+        ?string $sourceType = null,
+        ?int $sourceId = null,
+        ?string $movementAt = null,
+        ?string $notes = null
+    ): StockMovement {
+        return DB::transaction(function () use (
+            $inventoryItem,
+            $type,
+            $quantity,
+            $unitCost,
+            $sourceType,
+            $sourceId,
+            $movementAt,
+            $notes
+        ): StockMovement {
             $inventoryItem = InventoryItem::query()
-                ->whereKey($data['inventoryItemId'])
+                ->whereKey(
+                    $inventoryItem->id
+                )
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            $type = StockMovementTypeEnum::from(
-                (int) $data['type']
+            $quantity = round(
+                $quantity,
+                3
             );
 
-            $quantity = round(
-                (float) $data['quantity'],
-                3
+            $this->ensureValidQuantity(
+                $quantity
             );
 
             $this->ensureStockIsEnough(
@@ -81,12 +120,22 @@ class StockMovementService
                 $quantity
             );
 
-            $unitCost = array_key_exists('unitCost', $data)
-                ? (float) $data['unitCost']
-                : null;
+            $resolvedUnitCost = $unitCost;
 
-            $totalCost = $unitCost !== null
-                ? round($quantity * $unitCost, 4)
+            if (
+                $resolvedUnitCost === null
+                && $this->isStockOutMovement($type)
+                && $inventoryItem->unit_cost !== null
+            ) {
+                $resolvedUnitCost =
+                    (float) $inventoryItem->unit_cost;
+            }
+
+            $totalCost = $resolvedUnitCost !== null
+                ? round(
+                    $quantity * $resolvedUnitCost,
+                    4
+                )
                 : null;
 
             $movement = StockMovement::create([
@@ -100,7 +149,7 @@ class StockMovementService
                     $quantity,
 
                 'unit_cost' =>
-                    $unitCost,
+                    $resolvedUnitCost,
 
                 'total_cost' =>
                     $totalCost,
@@ -112,10 +161,10 @@ class StockMovementService
                     $sourceId,
 
                 'movement_at' =>
-                    $data['movementAt'] ?? now(),
+                    $movementAt ?? now(),
 
                 'notes' =>
-                    $data['notes'] ?? null,
+                    $notes,
 
                 'created_by' =>
                     Auth::id(),
@@ -130,7 +179,7 @@ class StockMovementService
             $this->updateInventoryItemCost(
                 $inventoryItem,
                 $type,
-                $unitCost
+                $resolvedUnitCost
             );
 
             return $movement->load([
@@ -147,6 +196,16 @@ class StockMovementService
             'inventoryItem',
             'createdBy',
         ]);
+    }
+
+    private function ensureValidQuantity(
+        float $quantity
+    ): void {
+        if ($quantity <= 0) {
+            throw new \InvalidArgumentException(
+                'Stock movement quantity must be greater than zero.'
+            );
+        }
     }
 
     private function ensureStockIsEnough(
@@ -176,17 +235,26 @@ class StockMovementService
         $currentQuantity =
             (float) $inventoryItem->current_quantity;
 
-        if ($this->isStockInMovement($type)) {
+        if (
+            $this->isStockInMovement($type)
+        ) {
             $newQuantity =
                 $currentQuantity + $quantity;
-        } else {
+        } elseif (
+            $this->isStockOutMovement($type)
+        ) {
             $newQuantity =
                 $currentQuantity - $quantity;
+        } else {
+            return;
         }
 
         $inventoryItem->update([
             'current_quantity' =>
-                round($newQuantity, 3),
+                round(
+                    $newQuantity,
+                    3
+                ),
         ]);
     }
 
@@ -206,14 +274,12 @@ class StockMovementService
             return;
         }
 
-        /*
-         * مبدئيًا نخزن آخر سعر شراء.
-         * لو احتجنا Average Cost لاحقًا
-         * نغير الحساب هنا فقط.
-         */
         $inventoryItem->update([
             'unit_cost' =>
-                round($unitCost, 4),
+                round(
+                    $unitCost,
+                    4
+                ),
         ]);
     }
 

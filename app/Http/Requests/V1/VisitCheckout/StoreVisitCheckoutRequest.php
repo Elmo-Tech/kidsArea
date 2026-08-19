@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests\V1\Visit;
+namespace App\Http\Requests\V1\VisitCheckout;
 
 use App\Enums\HttpStatusCode;
 use App\Helpers\ApiResponse;
@@ -10,7 +10,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 
-class StoreVisitRequest extends FormRequest
+class StoreVisitCheckoutRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -20,27 +20,16 @@ class StoreVisitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'childId' => [
-                'nullable',
+            'visitId' => [
+                'required',
                 'integer',
-                'exists:children,id',
-                'required_without:childName',
+                'exists:visits,id',
             ],
 
-            'childName' => [
-                'nullable',
-                'string',
-                'max:255',
-                'required_without:childId',
-                'prohibited_with:childId',
-            ],
-
-            'childPhone' => [
-                'nullable',
-                'string',
-                'max:30',
-                'required_without:childId',
-                'prohibited_with:childId',
+            'discount' => [
+                'sometimes',
+                'numeric',
+                'min:0',
             ],
 
             'notes' => [
@@ -51,9 +40,8 @@ class StoreVisitRequest extends FormRequest
         ];
     }
 
-    protected function failedValidation(
-        Validator $validator
-    ): void {
+    protected function failedValidation(Validator $validator): void
+    {
         throw new HttpResponseException(
             ApiResponse::error(
                 '',

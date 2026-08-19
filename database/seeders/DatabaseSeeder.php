@@ -20,6 +20,12 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleAndPermissionsSeeder::class,
             SuperAdminSeeder::class,
+            DepartmentSeeder::class,
+            JobTitleSeeder::class,
+            LeaveTypeSeeder::class,
+            PayrollSettingSeeder::class,
+            LeavePayrollPolicySeeder::class,
+
         ]);
     }
 }

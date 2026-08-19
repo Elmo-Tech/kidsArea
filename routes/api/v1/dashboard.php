@@ -537,6 +537,9 @@ use App\Http\Controllers\Api\V1\Admin\RecalculatePayrollController;
 use App\Http\Controllers\Api\V1\Admin\StockMovementController;
 use App\Http\Controllers\Api\V1\Admin\SyncEmployeeAttendanceController;
 use App\Http\Controllers\Api\V1\Admin\VisitController;
+use App\Http\Controllers\Api\V1\Admin\CafeOrderController;
+use App\Http\Controllers\Api\V1\Admin\VisitCheckoutController;
+use App\Http\Controllers\Api\V1\Admin\VisitPaymentController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(function (): void {
@@ -743,4 +746,31 @@ Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(functi
         Route::put('/{cafeProduct}', [CafeProductController::class, 'update'])->middleware('permission:cafe-products.update');
         Route::delete('/{cafeProduct}', [CafeProductController::class, 'destroy'])->middleware('permission:cafe-products.destroy');
     });
+
+    Route::prefix('cafe-orders')->group(function (): void {
+        Route::get('/', [CafeOrderController::class, 'index'])->middleware('permission:cafe-orders.index');
+        Route::post('/', [CafeOrderController::class, 'store'])->middleware('permission:cafe-orders.store');
+        Route::get('/{cafeOrder}', [CafeOrderController::class, 'show'])->middleware('permission:cafe-orders.show');
+        Route::put('/{cafeOrder}', [CafeOrderController::class, 'update'])->middleware('permission:cafe-orders.update');
+        Route::post('/{cafeOrder}/confirm', [CafeOrderController::class, 'confirm'])->middleware('permission:cafe-orders.confirm');
+        Route::post('/{cafeOrder}/complete', [CafeOrderController::class, 'complete'])->middleware('permission:cafe-orders.complete');
+        Route::post('/{cafeOrder}/cancel', [CafeOrderController::class, 'cancel'])->middleware('permission:cafe-orders.cancel');
+    });
+
+    Route::prefix('visit-checkouts')->group(function (): void {
+        Route::get('/', [VisitCheckoutController::class, 'index'])->middleware('permission:visit-checkouts.index');
+        Route::post('/', [VisitCheckoutController::class, 'store'])->middleware('permission:visit-checkouts.store');
+        Route::get('/{visitCheckout}', [VisitCheckoutController::class, 'show'])->middleware('permission:visit-checkouts.show');
+        Route::put('/{visitCheckout}', [VisitCheckoutController::class, 'update'])->middleware('permission:visit-checkouts.update');
+        Route::post('/{visitCheckout}/finalize', [VisitCheckoutController::class, 'finalize'])->middleware('permission:visit-checkouts.finalize');
+        Route::post('/{visitCheckout}/cancel', [VisitCheckoutController::class, 'cancel'])->middleware('permission:visit-checkouts.cancel');
+    });
+
+    Route::prefix('visit-checkouts/{visitCheckout}/payments')->group(function (): void {
+        Route::get('/', [VisitPaymentController::class, 'index'])->middleware('permission:visit-payments.index');
+        Route::post('/', [VisitPaymentController::class, 'store'])->middleware('permission:visit-payments.store');
+        Route::get('/summary', [VisitPaymentController::class, 'summary'])->middleware('permission:visit-payments.summary');
+    });
+
+    Route::get('visit-payments/{visitPayment}', [VisitPaymentController::class, 'show'])->middleware('permission:visit-payments.show');
 });

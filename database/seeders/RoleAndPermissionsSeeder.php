@@ -205,6 +205,29 @@ class RoleAndPermissionsSeeder extends Seeder
             'cafe-products.update',
             'cafe-products.destroy',
 
+            // Cafe Orders
+            'cafe-orders.index',
+            'cafe-orders.show',
+            'cafe-orders.store',
+            'cafe-orders.update',
+            'cafe-orders.confirm',
+            'cafe-orders.complete',
+            'cafe-orders.cancel',
+
+            // Visit Checkouts
+            'visit-checkouts.index',
+            'visit-checkouts.show',
+            'visit-checkouts.store',
+            'visit-checkouts.update',
+            'visit-checkouts.finalize',
+            'visit-checkouts.cancel',
+
+            // Visit Payments
+            'visit-payments.index',
+            'visit-payments.show',
+            'visit-payments.store',
+            'visit-payments.summary',
+
         ];
 
         foreach ($permissions as $permissionName) {

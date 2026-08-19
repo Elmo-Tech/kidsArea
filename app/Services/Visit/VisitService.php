@@ -10,6 +10,7 @@ use App\Exceptions\Visit\VisitAlreadyCancelledException;
 use App\Exceptions\Visit\VisitAlreadyClosedException;
 use App\Exceptions\Visit\VisitCannotBeCancelledException;
 use App\Exceptions\Visit\VisitHasActiveUsagesException;
+use App\Models\Child;
 use App\Models\Visit;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -17,6 +18,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
 use Spatie\QueryBuilder\QueryBuilder;
+
+use App\Enums\VisitCheckoutStatusEnum;
+use App\Exceptions\Visit\VisitCheckoutNotFinalizedException;
+use App\Exceptions\Visit\VisitCheckoutRequiredException;
+use App\Exceptions\Visit\VisitNotFullyPaidException;
 
 class VisitService
 {
@@ -53,32 +59,19 @@ class VisitService
         array $data
     ): Visit {
         return DB::transaction(function () use ($data): Visit {
+            $child = $this->resolveChild($data);
+
             $visit = Visit::create([
-                'child_id' =>
-                    $data['childId'] ?? null,
-
-                'started_at' =>
-                    now(),
-
-                'closed_at' =>
-                    null,
-
-                'status' =>
-                    VisitStatusEnum::OPEN->value,
-
-                'started_by' =>
-                    Auth::id(),
-
-                'closed_by' =>
-                    null,
-
-                'notes' =>
-                    $data['notes'] ?? null,
+                'child_id' => $child->id,
+                'started_at' => now(),
+                'closed_at' => null,
+                'status' => VisitStatusEnum::OPEN->value,
+                'started_by' => Auth::id(),
+                'closed_by' => null,
+                'notes' => $data['notes'] ?? null,
             ]);
 
-            return $this->loadVisit(
-                $visit
-            );
+            return $this->loadVisit($visit);
         });
     }
 
@@ -89,33 +82,21 @@ class VisitService
             $visit
         );
     }
-
-    public function closeVisit(
-        Visit $visit
-    ): Visit {
+    public function closeVisit(Visit $visit): Visit
+    {
         return DB::transaction(function () use ($visit): Visit {
-            $visit = $this->lockVisit(
-                $visit
-            );
+            $visit = $this->lockVisit($visit);
 
-            $this->ensureVisitCanBeClosed(
-                $visit
-            );
+            $this->ensureVisitCanBeClosed($visit);
+            $this->ensureVisitIsFullyPaid($visit);
 
             $visit->update([
-                'status' =>
-                    VisitStatusEnum::CLOSED->value,
-
-                'closed_at' =>
-                    now(),
-
-                'closed_by' =>
-                    Auth::id(),
+                'status' => VisitStatusEnum::CLOSED->value,
+                'closed_at' => now(),
+                'closed_by' => Auth::id(),
             ]);
 
-            return $this->loadVisit(
-                $visit->refresh()
-            );
+            return $this->loadVisit($visit->refresh());
         });
     }
 
@@ -156,6 +137,26 @@ class VisitService
                 $visit->refresh()
             );
         });
+    }
+
+    private function resolveChild(array $data): Child
+    {
+        if (! empty($data['childId'])) {
+            return Child::query()->findOrFail($data['childId']);
+        }
+
+        $child = Child::query()
+            ->where('phone', $data['childPhone'])
+            ->first();
+
+        if ($child) {
+            return $child;
+        }
+
+        return Child::query()->create([
+            'name' => $data['childName'],
+            'phone' => $data['childPhone'],
+        ]);
     }
 
     private function ensureVisitCanBeClosed(
@@ -292,5 +293,27 @@ class VisitService
         return $notes
             . PHP_EOL
             . $cancellationNote;
+    }
+
+    private function ensureVisitIsFullyPaid(Visit $visit): void
+    {
+        $checkout = $visit->checkout()
+            ->with('payments')
+            ->first();
+
+        if (! $checkout) {
+            throw new VisitCheckoutRequiredException();
+        }
+
+        if ($checkout->status !== VisitCheckoutStatusEnum::FINALIZED) {
+            throw new VisitCheckoutNotFinalizedException();
+        }
+
+        $paidAmount = (float) $checkout->payments()->sum('amount');
+        $total = (float) $checkout->total;
+
+        if (round($paidAmount, 2) < round($total, 2)) {
+            throw new VisitNotFullyPaidException();
+        }
     }
 }

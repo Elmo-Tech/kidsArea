@@ -19,6 +19,7 @@ use App\Exceptions\Activity\VisitNotOpenException;
 use App\Models\ActivityPricingPlan;
 use App\Models\ActivityUsage;
 use App\Models\ActivityUsagePause;
+use App\Models\Child;
 use App\Models\Visit;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -83,115 +84,59 @@ class ActivityUsageService
         array $data
     ): ActivityUsage {
         return DB::transaction(function () use ($data): ActivityUsage {
-
             $pricingPlan = ActivityPricingPlan::query()
                 ->with('activity')
-                ->findOrFail(
-                    $data['pricingPlanId']
-                );
-
-            $this->ensurePricingPlanSupportsUsage(
-                $pricingPlan
-            );
+                ->where('activity_id', $data['activityId'])
+                ->where('type', ActivityPricingTypeEnum::HOURLY->value)
+                ->where('status', 1)
+                ->firstOrFail();
+            $this->ensurePricingPlanSupportsUsage($pricingPlan);
 
             if (! empty($data['visitId'])) {
-                $visit = Visit::query()
-                    ->findOrFail(
-                        $data['visitId']
-                    );
-
-                $this->ensureVisitIsOpen(
-                    $visit
-                );
+                $visit = Visit::query()->findOrFail($data['visitId']);
+                $this->ensureVisitIsOpen($visit);
             }
 
+            $child = $this->resolveChild($data);
+
             $this->ensureNoActiveUsageForSameActivity(
-                childId: (int) $data['childId'],
+                childId: (int) $child->id,
                 activityId: (int) $pricingPlan->activity_id
             );
 
-            $usageType = ActivityUsageTypeEnum::from(
-                (int) $data['usageType']
-            );
-
+            $usageType = ActivityUsageTypeEnum::from((int) $data['usageType']);
             $startedAt = now();
 
             $plannedDurationMinutes = null;
             $plannedEndAt = null;
 
-            if (
-                $usageType ===
-                ActivityUsageTypeEnum::FIXED_DURATION
-            ) {
-                $plannedDurationMinutes =
-                    (int) $data['plannedDurationMinutes'];
-
-                $plannedEndAt = $startedAt
-                    ->copy()
-                    ->addMinutes(
-                        $plannedDurationMinutes
-                    );
+            if ($usageType === ActivityUsageTypeEnum::FIXED_DURATION) {
+                $plannedDurationMinutes = (int) $data['plannedDurationMinutes'];
+                $plannedEndAt = $startedAt->copy()->addMinutes($plannedDurationMinutes);
             }
 
             $usage = ActivityUsage::create([
-                'visit_id' =>
-                    $data['visitId'] ?? null,
-
-                'child_id' =>
-                    $data['childId'],
-
-                'activity_id' =>
-                    $pricingPlan->activity_id,
-
-                'activity_pricing_plan_id' =>
-                    $pricingPlan->id,
-
-                'usage_type' =>
-                    $usageType->value,
-
-                'started_at' =>
-                    $startedAt,
-
-                'ended_at' =>
-                    null,
-
-                'planned_duration_minutes' =>
-                    $plannedDurationMinutes,
-
-                'planned_end_at' =>
-                    $plannedEndAt,
-
-                'total_paused_minutes' =>
-                    0,
-
-                'duration_minutes' =>
-                    0,
-
-                'hourly_price' =>
-                    $pricingPlan->price,
-
-                'expected_amount' =>
-                    null,
-
-                'final_amount' =>
-                    null,
-
-                'status' =>
-                    ActivityUsageStatusEnum::ACTIVE->value,
-
-                'started_by' =>
-                    Auth::id(),
-
-                'closed_by' =>
-                    null,
-
-                'notes' =>
-                    $data['notes'] ?? null,
+                'visit_id' => $data['visitId'] ?? null,
+                'child_id' => $child->id,
+                'activity_id' => $pricingPlan->activity_id,
+                'activity_pricing_plan_id' => $pricingPlan->id,
+                'usage_type' => $usageType->value,
+                'started_at' => $startedAt,
+                'ended_at' => null,
+                'planned_duration_minutes' => $plannedDurationMinutes,
+                'planned_end_at' => $plannedEndAt,
+                'total_paused_minutes' => 0,
+                'duration_minutes' => 0,
+                'hourly_price' => $pricingPlan->price,
+                'expected_amount' => null,
+                'final_amount' => null,
+                'status' => ActivityUsageStatusEnum::ACTIVE->value,
+                'started_by' => Auth::id(),
+                'closed_by' => null,
+                'notes' => $data['notes'] ?? null,
             ]);
 
-            return $this->loadUsage(
-                $usage
-            );
+            return $this->loadUsage($usage);
         });
     }
 
@@ -670,6 +615,26 @@ class ActivityUsageService
             ->diffInMinutes(
                 Carbon::parse($to)
             );
+    }
+
+    private function resolveChild(array $data): Child
+    {
+        if (! empty($data['childId'])) {
+            return Child::query()->findOrFail($data['childId']);
+        }
+
+        $child = Child::query()
+            ->where('phone', $data['childPhone'])
+            ->first();
+
+        if ($child) {
+            return $child;
+        }
+
+        return Child::query()->create([
+            'name' => $data['childName'],
+            'phone' => $data['childPhone'],
+        ]);
     }
 
     /*

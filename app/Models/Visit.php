@@ -9,6 +9,7 @@ use App\Traits\CreatedUpdatedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Visit extends Model
 {
@@ -63,5 +64,18 @@ class Visit extends Model
         return $this->hasMany(
             ActivityUsage::class
         );
+    }
+
+    public function cafeOrders(): HasMany
+    {
+        return $this->hasMany(
+            CafeOrder::class
+        );
+    }
+
+
+    public function checkout(): HasOne
+    {
+        return $this->hasOne(VisitCheckout::class);
     }
 }

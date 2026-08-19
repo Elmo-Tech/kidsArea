@@ -27,17 +27,31 @@ class StartActivityUsageRequest extends FormRequest
             ],
 
             'childId' => [
-                'required',
+                'nullable',
                 'integer',
                 'exists:children,id',
+                'required_without:childName',
             ],
 
-            'pricingPlanId' => [
+            'childName' => [
+                'nullable',
+                'string',
+                'max:255',
+                'required_without:childId',
+            ],
+
+            'childPhone' => [
+                'nullable',
+                'string',
+                'max:30',
+                'required_without:childId',
+            ],
+
+            'activityId' => [
                 'required',
                 'integer',
-                'exists:activity_pricing_plans,id',
+                'exists:activities,id',
             ],
-
             'usageType' => [
                 'required',
                 Rule::enum(ActivityUsageTypeEnum::class),
@@ -61,9 +75,8 @@ class StartActivityUsageRequest extends FormRequest
         ];
     }
 
-    protected function failedValidation(
-        Validator $validator
-    ) {
+    protected function failedValidation(Validator $validator)
+    {
         throw new HttpResponseException(
             ApiResponse::error(
                 '',
