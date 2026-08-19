@@ -538,8 +538,9 @@ use App\Http\Controllers\Api\V1\Admin\StockMovementController;
 use App\Http\Controllers\Api\V1\Admin\SyncEmployeeAttendanceController;
 use App\Http\Controllers\Api\V1\Admin\VisitController;
 use App\Http\Controllers\Api\V1\Admin\CafeOrderController;
-use App\Http\Controllers\Api\V1\Admin\VisitCheckoutController;
-use App\Http\Controllers\Api\V1\Admin\VisitPaymentController;
+use App\Http\Controllers\Api\V1\Admin\PaymentController;
+use App\Http\Controllers\Api\V1\Admin\CheckoutVisitController;
+use App\Http\Controllers\Api\V1\Admin\InvoiceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(function (): void {
@@ -721,6 +722,7 @@ Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(functi
         Route::get('/', [VisitController::class, 'index'])->middleware('permission:visits.index');
         Route::post('/', [VisitController::class, 'store'])->middleware('permission:visits.store');
         Route::get('/{visit}', [VisitController::class, 'show'])->middleware('permission:visits.show');
+        Route::post('/{visit}/checkout', CheckoutVisitController::class);//->middleware('permission:visits.checkout');
         Route::post('/{visit}/close', [VisitController::class, 'close'])->middleware('permission:visits.close');
         Route::post('/{visit}/cancel', [VisitController::class, 'cancel'])->middleware('permission:visits.cancel');
     });
@@ -757,20 +759,19 @@ Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(functi
         Route::post('/{cafeOrder}/cancel', [CafeOrderController::class, 'cancel'])->middleware('permission:cafe-orders.cancel');
     });
 
-    Route::prefix('visit-checkouts')->group(function (): void {
-        Route::get('/', [VisitCheckoutController::class, 'index'])->middleware('permission:visit-checkouts.index');
-        Route::post('/', [VisitCheckoutController::class, 'store'])->middleware('permission:visit-checkouts.store');
-        Route::get('/{visitCheckout}', [VisitCheckoutController::class, 'show'])->middleware('permission:visit-checkouts.show');
-        Route::put('/{visitCheckout}', [VisitCheckoutController::class, 'update'])->middleware('permission:visit-checkouts.update');
-        Route::post('/{visitCheckout}/finalize', [VisitCheckoutController::class, 'finalize'])->middleware('permission:visit-checkouts.finalize');
-        Route::post('/{visitCheckout}/cancel', [VisitCheckoutController::class, 'cancel'])->middleware('permission:visit-checkouts.cancel');
+    Route::prefix('activity-usages/{usage}/payments')->group(function (): void {
+        Route::post('/', [PaymentController::class, 'storeActivityUsage'])->middleware('permission:payments.activity-usages.store');
+        Route::get('/summary', [PaymentController::class, 'activityUsageSummary'])->middleware('permission:payments.activity-usages.summary');
     });
 
-    Route::prefix('visit-checkouts/{visitCheckout}/payments')->group(function (): void {
-        Route::get('/', [VisitPaymentController::class, 'index'])->middleware('permission:visit-payments.index');
-        Route::post('/', [VisitPaymentController::class, 'store'])->middleware('permission:visit-payments.store');
-        Route::get('/summary', [VisitPaymentController::class, 'summary'])->middleware('permission:visit-payments.summary');
+    Route::prefix('cafe-orders/{cafeOrder}/payments')->group(function (): void {
+        Route::post('/', [PaymentController::class, 'storeCafeOrder'])->middleware('permission:payments.cafe-orders.store');
+        Route::get('/summary', [PaymentController::class, 'cafeOrderSummary'])->middleware('permission:payments.cafe-orders.summary');
     });
 
-    Route::get('visit-payments/{visitPayment}', [VisitPaymentController::class, 'show'])->middleware('permission:visit-payments.show');
+    Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->middleware('permission:invoices.show');
+    Route::get('visits/{visit}/invoice', [InvoiceController::class, 'showVisit'])->middleware('permission:invoices.visits.show');
+    Route::get('activity-usages/{usage}/invoice', [InvoiceController::class, 'showActivityUsage'])->middleware('permission:invoices.activity-usages.show');
+    Route::get('cafe-orders/{cafeOrder}/invoice', [InvoiceController::class, 'showCafeOrder'])->middleware('permission:invoices.cafe-orders.show');
+
 });

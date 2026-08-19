@@ -9,6 +9,8 @@ use App\Enums\ActivityUsageTypeEnum;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class ActivityUsage extends Model
 {
@@ -111,6 +113,20 @@ class ActivityUsage extends Model
         return $this->belongsTo(
             User::class,
             'closed_by'
+        );
+    }
+
+
+    public function payments(): MorphMany
+    {
+        return $this->morphMany(Payment::class, 'payable');
+    }
+
+    public function invoice(): MorphOne
+    {
+        return $this->morphOne(
+            Invoice::class,
+            'invoiceable'
         );
     }
 }

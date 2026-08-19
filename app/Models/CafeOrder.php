@@ -9,6 +9,8 @@ use App\Traits\CreatedUpdatedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class CafeOrder extends Model
 {
@@ -53,6 +55,20 @@ class CafeOrder extends Model
     {
         return $this->hasMany(
             CafeOrderItem::class
+        );
+    }
+
+
+    public function payments(): MorphMany
+    {
+        return $this->morphMany(Payment::class, 'payable');
+    }
+
+    public function invoice(): MorphOne
+    {
+        return $this->morphOne(
+            Invoice::class,
+            'invoiceable'
         );
     }
 }

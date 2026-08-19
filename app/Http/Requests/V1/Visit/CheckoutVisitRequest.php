@@ -9,9 +9,8 @@ use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Validation\Rule;
 
-class StoreVisitRequest extends FormRequest
+class CheckoutVisitRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -21,31 +20,28 @@ class StoreVisitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'childId' => [
-                'nullable',
-                'integer',
-                'exists:children,id',
-                'required_without:childName',
+            'discount' => [
+                'sometimes',
+                'numeric',
+                'min:0',
             ],
 
-            'childName' => [
+            'amount' => [
+                'nullable',
+                'numeric',
+                'gt:0',
+            ],
+
+            'paidAt' => [
+                'sometimes',
+                'nullable',
+                'date_format:Y-m-d H:i:s',
+            ],
+
+            'reference' => [
                 'nullable',
                 'string',
                 'max:255',
-                'required_without:childId',
-                Rule::prohibitedIf(
-                    fn (): bool => $this->filled('childId')
-                ),
-            ],
-
-            'childPhone' => [
-                'nullable',
-                'string',
-                'max:30',
-                'required_without:childId',
-                Rule::prohibitedIf(
-                    fn (): bool => $this->filled('childId')
-                ),
             ],
 
             'notes' => [
@@ -56,9 +52,8 @@ class StoreVisitRequest extends FormRequest
         ];
     }
 
-    protected function failedValidation(
-        Validator $validator
-    ): void {
+    protected function failedValidation(Validator $validator): void
+    {
         throw new HttpResponseException(
             ApiResponse::error(
                 '',

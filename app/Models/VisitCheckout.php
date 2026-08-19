@@ -9,6 +9,8 @@ use App\Traits\CreatedUpdatedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class VisitCheckout extends Model
 {
@@ -48,8 +50,17 @@ class VisitCheckout extends Model
         return $this->belongsTo(Visit::class);
     }
 
-    public function payments(): HasMany
+    public function payments(): MorphMany
     {
-        return $this->hasMany(VisitPayment::class);
+        return $this->morphMany(Payment::class, 'payable');
     }
+
+    public function invoice(): MorphOne
+    {
+        return $this->morphOne(
+            Invoice::class,
+            'invoiceable'
+        );
+    }
+
 }

@@ -185,6 +185,7 @@ class RoleAndPermissionsSeeder extends Seeder
             'visits.store',
             'visits.close',
             'visits.cancel',
+            'visits.checkout',
 
             // Inventory Items
             'inventory-items.index',
@@ -227,6 +228,19 @@ class RoleAndPermissionsSeeder extends Seeder
             'visit-payments.show',
             'visit-payments.store',
             'visit-payments.summary',
+
+            // Payments
+            'payments.activity-usages.store',
+            'payments.activity-usages.summary',
+
+            'payments.cafe-orders.store',
+            'payments.cafe-orders.summary',
+
+            // Invoices
+            'invoices.show',
+            'invoices.visits.show',
+            'invoices.activity-usages.show',
+            'invoices.cafe-orders.show',
 
         ];
 
