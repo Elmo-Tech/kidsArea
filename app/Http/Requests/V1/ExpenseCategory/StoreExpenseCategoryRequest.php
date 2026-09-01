@@ -29,11 +29,9 @@ class StoreExpenseCategoryRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(
-            ApiResponse::error(
-                '',
+            ApiResponse::error('',
                 $validator->errors()->toArray(),
-                HttpStatusCode::UNPROCESSABLE_ENTITY
-            )
+                HttpStatusCode::UNPROCESSABLE_ENTITY)
         );
     }
 }

@@ -8,33 +8,32 @@ use App\Models\ActivityUsage;
 use App\Models\CafeOrder;
 use App\Models\Invoice;
 use App\Models\VisitCheckout;
+use ArPHP\I18N\Arabic;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Symfony\Component\HttpFoundation\Response;
 
 class InvoicePdfService
 {
-    public function stream(Invoice $invoice): Response
+    public function stream(Invoice $invoice)
     {
         $invoice = $this->prepareInvoice($invoice);
 
-        $pdf = Pdf::loadView('pdf.invoice', [
+        $html = view('pdf.invoice', [
             'invoice' => $invoice,
-        ])->setPaper('a4');
+        ])->render();
+
+        $arabic = new Arabic();
+
+        $html = $arabic->utf8Glyphs(
+            $html,
+            100,
+            false,
+            true
+        );
+
+        $pdf = Pdf::loadHTML($html)
+            ->setPaper('a4');
 
         return $pdf->stream(
-            "{$invoice->invoice_number}.pdf"
-        );
-    }
-
-    public function download(Invoice $invoice): Response
-    {
-        $invoice = $this->prepareInvoice($invoice);
-
-        $pdf = Pdf::loadView('pdf.invoice', [
-            'invoice' => $invoice,
-        ])->setPaper('a4');
-
-        return $pdf->download(
             "{$invoice->invoice_number}.pdf"
         );
     }

@@ -295,13 +295,12 @@ Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(functi
         Route::get('/summary', [PaymentController::class, 'cafeOrderSummary'])->middleware('permission:payments.cafe-orders.summary');
     });
 
-    Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->middleware('permission:invoices.show');
+    //Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->middleware('permission:invoices.show');
     Route::get('visits/{visit}/invoice', [InvoiceController::class, 'showVisit'])->middleware('permission:invoices.visits.show');
     Route::get('activity-usages/{usage}/invoice', [InvoiceController::class, 'showActivityUsage'])->middleware('permission:invoices.activity-usages.show');
     Route::get('cafe-orders/{cafeOrder}/invoice', [InvoiceController::class, 'showCafeOrder'])->middleware('permission:invoices.cafe-orders.show');
 
     Route::get('invoices/{invoice}/pdf', [InvoicePdfController::class, 'show'])->middleware('permission:invoices.pdf');
-    Route::get('invoices/{invoice}/download', [InvoicePdfController::class, 'download'])->middleware('permission:invoices.download');
 
     Route::prefix('activity-session-employee-attendances')->group(function (): void {
         Route::get('/', [ActivitySessionEmployeeAttendanceController::class, 'index'])->middleware('permission:activity-session-employee-attendances.index');
@@ -331,28 +330,21 @@ Route::prefix('dashboard')->middleware(['locale', 'auth:sanctum'])->group(functi
         Route::post('/{cashShift}/close', [CashShiftController::class, 'close'])->middleware('permission:cash-shifts.close');
     });
 
-    Route::prefix('cash-transactions')->group(function (): void {
+    /*Route::prefix('cash-transactions')->group(function (): void {
         Route::post('/', [CashTransactionController::class, 'store'])->middleware('permission:cash-transactions.store');
     });
 
-    Route::get(
-        'cash-shifts/{cashShift}/transactions',
-        [CashTransactionController::class, 'indexForShift']
-    )->middleware(
+    Route::get('cash-shifts/{cashShift}/transactions', [CashTransactionController::class, 'indexForShift'])->middleware(
         'permission:cash-transactions.index'
     );
 
-    Route::get('cash-reports', CashReportController::class)
-    ->middleware('permission:cash-reports.show');
+    Route::get('cash-reports', CashReportController::class)->middleware('permission:cash-reports.show');
 
     Route::prefix('cash-transfers')->group(function (): void {
-        Route::post(
-            '/',
-            [CashTransferController::class, 'store']
-        )->middleware('permission:cash-transfers.store');
+        Route::post('/',[CashTransferController::class, 'store'])->middleware('permission:cash-transfers.store');
     });
 
-    Route::get('cash-summary', [CashSummaryController::class, 'general'])->middleware('permission:cash-summary.show');
+    Route::get('cash-summary', [CashSummaryController::class, 'general'])->middleware('permission:cash-summary.show');*/
 
     Route::prefix('children')->group(function (): void {
         Route::get('/', [ChildController::class, 'index'])->middleware('permission:children.index');

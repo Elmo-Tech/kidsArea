@@ -18,6 +18,35 @@
             color: #222;
         }
 
+        table {
+            direction: rtl;
+            width: 100%;
+        }
+
+        th,
+        td {
+            direction: rtl;
+            text-align: right;
+        }
+
+        .ltr {
+            direction: ltr;
+            text-align: left;
+            unicode-bidi: embed;
+        }
+
+        .ltr-inline {
+            direction: ltr;
+            unicode-bidi: embed;
+            display: inline-block;
+        }
+
+        .numeric {
+            direction: ltr;
+            text-align: center;
+            unicode-bidi: embed;
+        }
+
         .header {
             margin-bottom: 25px;
             border-bottom: 2px solid #222;
@@ -160,7 +189,7 @@
 
                 <div class="invoice-number">
                     رقم الفاتورة:
-                    {{ $invoice->invoice_number }}
+                    <span class="ltr-inline">{{ $invoice->invoice_number }}</span>
                 </div>
             </td>
 
@@ -170,7 +199,7 @@
                 </div>
 
                 <div>
-                    {{ $invoice->issued_at?->format('Y-m-d H:i') }}
+                    <span class="ltr-inline">{{ $invoice->issued_at?->format('Y-m-d H:i') }}</span>
                 </div>
             </td>
         </tr>
@@ -200,7 +229,7 @@
                     رقم الزيارة
                 </td>
 
-                <td>
+                <td class="numeric">
                     {{ $visit->id }}
                 </td>
             </tr>
@@ -220,7 +249,7 @@
                     رقم الهاتف
                 </td>
 
-                <td>
+                <td class="ltr">
                     {{ $visit->child?->phone ?? '-' }}
                 </td>
             </tr>
@@ -230,7 +259,7 @@
                     بداية الزيارة
                 </td>
 
-                <td>
+                <td class="ltr">
                     {{ $visit->started_at?->format('Y-m-d H:i') ?? '-' }}
                 </td>
             </tr>
@@ -240,7 +269,7 @@
                     نهاية الزيارة
                 </td>
 
-                <td>
+                <td class="ltr">
                     {{ $visit->closed_at?->format('Y-m-d H:i') ?? '-' }}
                 </td>
             </tr>
@@ -278,20 +307,20 @@
                             {{ $usage->activity?->name ?? '-' }}
                         </td>
 
-                        <td>
+                        <td class="numeric">
                             {{ $usage->started_at?->format('H:i') ?? '-' }}
                         </td>
 
-                        <td>
+                        <td class="numeric">
                             {{ $usage->ended_at?->format('H:i') ?? '-' }}
                         </td>
 
                         <td>
-                            {{ $usage->duration_minutes ?? 0 }}
+                            <span class="ltr-inline">{{ $usage->duration_minutes ?? 0 }}</span>
                             دقيقة
                         </td>
 
-                        <td>
+                        <td class="numeric">
                             {{ number_format((float) $usage->final_amount, 2) }}
                         </td>
                     </tr>
@@ -344,15 +373,15 @@
                                 {{ $item->product_name }}
                             </td>
 
-                            <td>
+                            <td class="numeric">
                                 {{ $item->quantity }}
                             </td>
 
-                            <td>
+                            <td class="numeric">
                                 {{ number_format((float) $item->unit_price, 2) }}
                             </td>
 
-                            <td>
+                            <td class="numeric">
                                 {{ number_format((float) $item->total, 2) }}
                             </td>
                         </tr>
@@ -399,7 +428,7 @@
             <tr>
                 <td>رقم الهاتف</td>
 
-                <td>
+                <td class="ltr">
                     {{ $usage->child?->phone ?? '-' }}
                 </td>
             </tr>
@@ -415,7 +444,7 @@
             <tr>
                 <td>وقت البداية</td>
 
-                <td>
+                <td class="ltr">
                     {{ $usage->started_at?->format('Y-m-d H:i') ?? '-' }}
                 </td>
             </tr>
@@ -423,7 +452,7 @@
             <tr>
                 <td>وقت النهاية</td>
 
-                <td>
+                <td class="ltr">
                     {{ $usage->ended_at?->format('Y-m-d H:i') ?? '-' }}
                 </td>
             </tr>
@@ -432,7 +461,7 @@
                 <td>مدة الاستخدام</td>
 
                 <td>
-                    {{ $usage->duration_minutes ?? 0 }}
+                    <span class="ltr-inline">{{ $usage->duration_minutes ?? 0 }}</span>
                     دقيقة
                 </td>
             </tr>
@@ -441,7 +470,7 @@
                 <td>إجمالي التوقف</td>
 
                 <td>
-                    {{ $usage->total_paused_minutes ?? 0 }}
+                    <span class="ltr-inline">{{ $usage->total_paused_minutes ?? 0 }}</span>
                     دقيقة
                 </td>
             </tr>
@@ -473,7 +502,7 @@
                     رقم الطلب
                 </td>
 
-                <td>
+                <td class="ltr">
                     {{ $order->order_number }}
                 </td>
             </tr>
@@ -483,7 +512,7 @@
                     تاريخ الطلب
                 </td>
 
-                <td>
+                <td class="ltr">
                     {{ $order->created_at?->format('Y-m-d H:i') ?? '-' }}
                 </td>
             </tr>
@@ -518,15 +547,15 @@
                         {{ $item->product_name }}
                     </td>
 
-                    <td>
+                    <td class="numeric">
                         {{ $item->quantity }}
                     </td>
 
-                    <td>
+                    <td class="numeric">
                         {{ number_format((float) $item->unit_price, 2) }}
                     </td>
 
-                    <td>
+                    <td class="numeric">
                         {{ number_format((float) $item->total, 2) }}
                     </td>
                 </tr>
@@ -553,7 +582,7 @@
                 الإجمالي قبل الخصم
             </td>
 
-            <td>
+            <td class="numeric">
                 {{ number_format((float) $invoice->subtotal, 2) }}
             </td>
         </tr>
@@ -563,7 +592,7 @@
                 الخصم
             </td>
 
-            <td>
+            <td class="numeric">
                 {{ number_format((float) $invoice->discount, 2) }}
             </td>
         </tr>
@@ -573,7 +602,7 @@
                 الإجمالي النهائي
             </td>
 
-            <td>
+            <td class="numeric">
                 {{ number_format((float) $invoice->total, 2) }}
             </td>
         </tr>
@@ -608,15 +637,15 @@
             @foreach ($payments as $payment)
 
                 <tr>
-                    <td>
+                    <td class="numeric">
                         {{ number_format((float) $payment->amount, 2) }}
                     </td>
 
-                    <td>
+                    <td class="ltr">
                         {{ $payment->paid_at?->format('Y-m-d H:i') }}
                     </td>
 
-                    <td>
+                    <td class="ltr">
                         {{ $payment->reference ?? '-' }}
                     </td>
                 </tr>
@@ -637,7 +666,7 @@
                 المدفوع
             </td>
 
-            <td>
+            <td class="numeric">
                 {{ number_format($paidAmount, 2) }}
             </td>
         </tr>
@@ -647,7 +676,7 @@
                 المتبقي
             </td>
 
-            <td>
+            <td class="numeric">
                 {{ number_format($remainingAmount, 2) }}
             </td>
         </tr>
