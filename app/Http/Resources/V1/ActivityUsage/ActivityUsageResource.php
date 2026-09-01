@@ -19,11 +19,6 @@ class ActivityUsageResource extends JsonResource
                 ]
                 : null,
 
-            'child' => [
-                'id' => $this->child->id,
-                'name' => $this->child->name,
-            ],
-
             'activity' => [
                 'id' => $this->activity->id,
                 'name' => $this->activity->name,

@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Helpers\ApiResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\V1\Invoice\InvoiceResource;
+use App\Models\ActivityMembership;
 use App\Models\ActivityUsage;
 use App\Models\CafeOrder;
 use App\Models\Invoice;
@@ -51,6 +52,19 @@ final class InvoiceController extends Controller
     {
         $checkout = $visit->checkout()->firstOrFail();
         $invoice = $this->invoiceService->findFor($checkout);
+
+        return ApiResponse::success(
+            new InvoiceResource($invoice)
+        );
+    }
+
+    public function showActivityMembership(
+        ActivityMembership $membership
+    ): JsonResponse {
+
+        $invoice = $this->invoiceService->findFor(
+            $membership
+        );
 
         return ApiResponse::success(
             new InvoiceResource($invoice)

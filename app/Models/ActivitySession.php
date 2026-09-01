@@ -60,13 +60,24 @@ class ActivitySession extends Model
         return $this->belongsToMany(
             Child::class,
             'activity_session_children'
-        );
+        )->withPivot([
+                'activity_membership_id',
+                'assigned_manually',
+            ])
+            ->withTimestamps();
     }
-
     public function attendances(): HasMany
     {
         return $this->hasMany(
             ActivityAttendance::class
+        );
+    }
+
+
+    public function employeeAttendances(): HasMany
+    {
+        return $this->hasMany(
+            ActivitySessionEmployeeAttendance::class
         );
     }
 }

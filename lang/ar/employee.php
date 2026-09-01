@@ -26,5 +26,6 @@ return [
     'check_in_successfully' => 'تم تسجيل الحضور بنجاح.',
     'check_out_successfully' => 'تم تسجيل الانصراف بنجاح.',
     'job_title_has_employees' => 'لا يمكن حذف هذا الوظيفة لوجود موظفين فيها.',
+    'has_missing_attendance' => 'لا يمكن اعتماد الرواتب لأن الموظف :employee لديه يوم حضور غير مسجل بتاريخ :date.',
 
 ];

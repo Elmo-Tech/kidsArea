@@ -37,6 +37,7 @@ class UpdateActivityAttendanceRequest extends FormRequest
                 'sometimes',
                 'nullable',
                 'date_format:H:i',
+                'after:checkInAt',
             ],
 
             'status' => [

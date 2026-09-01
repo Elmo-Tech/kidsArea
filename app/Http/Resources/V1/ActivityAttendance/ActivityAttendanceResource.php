@@ -33,12 +33,14 @@ class ActivityAttendanceResource extends JsonResource
             ],
 
             'membership' => $this->membership
-                ? [
-                    'id' => $this->membership->id,
-                    'pricingPlanId' =>
-                        $this->membership->activity_pricing_plan_id,
-                ]
-                : null,
+                    ? [
+                        'id' => $this->membership->id,
+                        'pricingPlanId' => $this->membership->activity_pricing_plan_id,
+                        'pricingPlanType' => $this->membership->pricingPlan?->type?->value,
+                        'status' => $this->membership->status->value,
+                        'sessionsTotal' => $this->membership->sessions_total,
+                    ]
+                    : null,
 
             'checkInAt' =>
                 $this->check_in_at,

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ContractStatusEnum;
 use App\Traits\CreatedUpdatedBy;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -79,6 +80,13 @@ class Employee extends Model
         return $this->belongsToMany(
             ActivitySession::class,
             'activity_session_employees'
+        );
+    }
+
+    public function activitySessionAttendances(): HasMany
+    {
+        return $this->hasMany(
+            ActivitySessionEmployeeAttendance::class
         );
     }
 }

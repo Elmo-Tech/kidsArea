@@ -12,11 +12,12 @@ class AllActivityUsageResource extends JsonResource
         return [
             'id' => $this->id,
 
-            'child' => [
-                'id' => $this->child->id,
-                'name' => $this->child->name,
-            ],
-
+            'child' => when($this->child, function () {
+                return [
+                    'id' => $this->child->id,
+                    'name' => $this->child->name,
+                ];
+            }),
             'activity' => [
                 'id' => $this->activity->id,
                 'name' => $this->activity->name,

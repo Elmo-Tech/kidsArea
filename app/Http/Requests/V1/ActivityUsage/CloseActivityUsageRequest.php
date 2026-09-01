@@ -18,12 +18,6 @@ class CloseActivityUsageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'finalAmount' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
             'notes' => [
                 'nullable',
                 'string',

@@ -19,18 +19,16 @@ final class PayrollPaymentController extends Controller
 {
     public function __construct(
         private readonly PayrollPaymentService $payrollPaymentService
-    ) {
-    }
+    ) {}
 
     public function index(
-        EmployeePayroll $employeePayroll,
-        Request $request
+        Request $request,
+        EmployeePayroll $employeePayroll
     ): JsonResponse {
-        $payments = $this->payrollPaymentService
-            ->allForEmployeePayroll(
-                $employeePayroll,
-                $request
-            );
+        $payments = $this->payrollPaymentService->allForEmployeePayroll(
+            $employeePayroll,
+            $request
+        );
 
         return ApiResponse::success(
             new PayrollPaymentCollection($payments)
@@ -41,11 +39,10 @@ final class PayrollPaymentController extends Controller
         PayEmployeePayrollRequest $request,
         EmployeePayroll $employeePayroll
     ): JsonResponse {
-        $payment = $this->payrollPaymentService
-            ->payRemainingSalary(
-                $employeePayroll,
-                $request->validated()
-            );
+        $payment = $this->payrollPaymentService->payRemainingSalary(
+            $employeePayroll,
+            $request->validated()
+        );
 
         return ApiResponse::success(
             new PayrollPaymentResource($payment),

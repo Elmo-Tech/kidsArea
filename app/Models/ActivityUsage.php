@@ -16,8 +16,10 @@ class ActivityUsage extends Model
 {
     protected $fillable = [
         'visit_id',
-        'child_id',
+        //'child_id',
         'activity_id',
+        'customer_name',
+        'customer_phone',
         'activity_pricing_plan_id',
         'usage_type',
         'started_at',
@@ -71,12 +73,12 @@ class ActivityUsage extends Model
         );
     }
 
-    public function child(): BelongsTo
+    /*public function child(): BelongsTo
     {
         return $this->belongsTo(
             Child::class
         );
-    }
+    }*/
 
     public function activity(): BelongsTo
     {

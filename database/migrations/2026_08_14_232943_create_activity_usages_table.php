@@ -25,6 +25,10 @@ return new class extends Migration
                 ->constrained('children')
                 ->cascadeOnDelete();
 
+            $table->string('customer_name', 150);
+
+            $table->string('customer_phone', 50);
+
             $table->foreignId('activity_id')
                 ->constrained('activities')
                 ->restrictOnDelete();

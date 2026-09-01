@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PaymentMethodEnum;
 use App\Traits\CreatedUpdatedByMigration;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -24,11 +25,17 @@ return new class extends Migration
 
             $table->text('notes')->nullable();
 
+            $table->tinyInteger('payment_method')
+                ->default(PaymentMethodEnum::CASH->value);
+
+
             $this->createdUpdatedByRelationship($table);
 
             $table->timestamps();
 
             $table->index('paid_at');
+
+
         });
     }
 

@@ -14,7 +14,7 @@ class AllVisitResource extends JsonResource
         return [
             'id' => $this->id,
 
-            'child' => $this->child
+            'customer' => $this->child
                 ? [
                     'id' => $this->child->id,
                     'name' => $this->child->name,

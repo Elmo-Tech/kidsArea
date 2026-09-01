@@ -15,6 +15,7 @@ use App\Models\ActivityMembership;
 use App\Services\Activity\ActivityMembershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Http\Requests\V1\ActivityMembership\RenewActivityMembershipRequest;
 
 final class ActivityMembershipController extends Controller
 {
@@ -85,6 +86,22 @@ final class ActivityMembershipController extends Controller
         return ApiResponse::success(
             null,
             __('messages.deleted_successfully')
+        );
+    }
+
+    public function renew(
+        RenewActivityMembershipRequest $request,
+        ActivityMembership $activityMembership
+    ): JsonResponse {
+        $membership = $this->activityMembershipService->renewMembership(
+            $activityMembership,
+            $request->validated()
+        );
+
+        return ApiResponse::success(
+            new ActivityMembershipResource($membership),
+            __('messages.created_successfully'),
+            HttpStatusCode::CREATED
         );
     }
 }

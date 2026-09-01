@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -10,7 +12,10 @@ use Spatie\Permission\PermissionRegistrar;
 class RoleAndPermissionsSeeder extends Seeder
 {
     private const GUARD_NAME = 'web';
+
     private const SUPER_ADMIN_ROLE = 'super-admin';
+    private const EMPLOYEE_ROLE = 'employee';
+    private const CASHIER_ROLE = 'cashier';
 
     public function run(): void
     {
@@ -161,6 +166,7 @@ class RoleAndPermissionsSeeder extends Seeder
             'activity-memberships.store',
             'activity-memberships.update',
             'activity-memberships.destroy',
+            'activity-memberships.renew',
 
             // Activity Attendances
             'activity-attendances.index',
@@ -232,7 +238,6 @@ class RoleAndPermissionsSeeder extends Seeder
             // Payments
             'payments.activity-usages.store',
             'payments.activity-usages.summary',
-
             'payments.cafe-orders.store',
             'payments.cafe-orders.summary',
 
@@ -241,7 +246,87 @@ class RoleAndPermissionsSeeder extends Seeder
             'invoices.visits.show',
             'invoices.activity-usages.show',
             'invoices.cafe-orders.show',
+            'invoices.pdf',
+            'invoices.download',
 
+            // Activity Session Employee Attendances
+            'activity-session-employee-attendances.index',
+            'activity-session-employee-attendances.show',
+            'activity-session-employee-attendances.store',
+            'activity-session-employee-attendances.update',
+            'activity-session-employee-attendances.destroy',
+            'student-activity-attendances.index',
+
+            // Cash Registers
+            'cash-registers.main',
+            'cash-registers.index',
+            'cash-registers.show',
+            'cash-registers.store',
+            'cash-registers.update',
+            'cash-registers.destroy',
+
+            // Cash Shifts
+            'cash-shifts.index',
+            'cash-shifts.open',
+            'cash-shifts.show',
+            'cash-shifts.summary',
+            'cash-shifts.close',
+            'cash-shifts.manage-all',
+            'cash-shifts.employee-open',
+
+            // Cash Transactions
+            'cash-transactions.index',
+            'cash-transactions.store',
+
+            // Cash
+            'cash-summary.show',
+            'cash-reports.show',
+
+            // Employee Portal
+            'employee-activity-attendances',
+
+            // Cash Transfers
+            'cash-transfers.store',
+
+            // Children
+            'children.index',
+            'children.show',
+            'children.store',
+            'children.update',
+            'children.destroy',
+
+            // Activity Membership Payments
+            'activity-membership-payments.store',
+            'activity-membership-payments.summary'.
+
+            // Expense Categories
+            'expense-categories.index',
+            'expense-categories.show',
+            'expense-categories.store',
+            'expense-categories.update',
+            'expense-categories.destroy',
+
+            // Expenses
+            'expenses.index',
+            'expenses.show',
+            'expenses.store',
+            'expenses.update',
+
+            // Dashboard
+            'dashboard.show',
+
+            // Refunds
+            'refunds.index',
+            'refunds.show',
+            'refunds.store',
+
+            // Reports
+            'reports.financial',
+            'reports.memberships',
+            'reports.activities',
+            'reports.cafe',
+            'reports.attendance',
+            'reports.expenses'
         ];
 
         foreach ($permissions as $permissionName) {
@@ -256,11 +341,103 @@ class RoleAndPermissionsSeeder extends Seeder
             'guard_name' => self::GUARD_NAME,
         ]);
 
+        $employeeRole = Role::query()->firstOrCreate([
+            'name' => self::EMPLOYEE_ROLE,
+            'guard_name' => self::GUARD_NAME,
+        ]);
+
+        $cashierRole = Role::query()->firstOrCreate([
+            'name' => self::CASHIER_ROLE,
+            'guard_name' => self::GUARD_NAME,
+        ]);
+
         $superAdminRole->syncPermissions(
             Permission::query()
                 ->where('guard_name', self::GUARD_NAME)
                 ->get()
         );
+
+        /*
+         * Employee
+         *
+         * /me/profile
+         * /me/attendance/check-in
+         * /me/attendance/check-out
+         * /me/attendance/today
+         * /me/activity-sessions
+         *
+         * الـ APIs دي authenticated APIs ومش محتاجة Dashboard permissions.
+         *
+         * الصلاحيات دي بنسيبها للعمليات الخاصة بالـ sessions
+         * لو احتجناها من dashboard أو API محمية بالـ permission.
+         */
+        $employeeRole->syncPermissions([
+            'activity-session-employee-attendances.show',
+            'activity-session-employee-attendances.store',
+        ]);
+
+        /*
+         * Cashier
+         *
+         * الكاشير Employee عادي، لكنه يمتلك صلاحيات تشغيل إضافية.
+         */
+        $cashierRole->syncPermissions([
+            // Cash Shift
+            'cash-registers.index',
+            'cash-registers.show',
+            'cash-shifts.employee-open',
+
+            // Today's students
+            'employee-activity-attendances',
+
+            // Children attendance
+            'activity-attendances.index',
+            'activity-attendances.show',
+            'activity-attendances.store',
+            'activity-attendances.update',
+            'student-activity-attendances.index',
+
+            // Cafe
+            'cafe-products.index',
+            'cafe-products.show',
+
+            'cafe-orders.index',
+            'cafe-orders.show',
+            'cafe-orders.store',
+            'cafe-orders.update',
+            'cafe-orders.confirm',
+            'cafe-orders.complete',
+            'cafe-orders.cancel',
+
+            // Standalone cafe payments
+            'payments.cafe-orders.store',
+            'payments.cafe-orders.summary',
+
+            // Visits
+            'visits.index',
+            'visits.show',
+            'visits.store',
+            'visits.checkout',
+
+            // Activity usages
+            'activity-usages.index',
+            'activity-usages.show',
+            'activity-usages.start',
+            'activity-usages.pause',
+            'activity-usages.resume',
+            'activity-usages.change-type',
+            'activity-usages.close',
+
+            // Standalone activity payments
+            'payments.activity-usages.store',
+            'payments.activity-usages.summary',
+
+            // Invoices
+            'invoices.show',
+            'invoices.visits.show',
+            'invoices.activity-usages.show',
+            'invoices.cafe-orders.show',
+        ]);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

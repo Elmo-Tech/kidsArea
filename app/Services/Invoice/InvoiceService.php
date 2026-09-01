@@ -8,6 +8,7 @@ use App\Models\ActivityUsage;
 use App\Models\CafeOrder;
 use App\Models\Invoice;
 use App\Models\VisitCheckout;
+use App\Models\ActivityMembership;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
@@ -65,6 +66,14 @@ class InvoiceService
             ]);
         }
 
+        if ($invoice->invoiceable instanceof ActivityMembership) {
+            $invoice->invoiceable->load([
+                'child',
+                'activity',
+                'pricingPlan',
+            ]);
+        }
+
         return $invoice;
     }
     private function resolveTotals(Model $invoiceable): array
@@ -88,12 +97,17 @@ class InvoiceService
                 'total' => (float) $invoiceable->final_amount,
             ],
 
+            $invoiceable instanceof ActivityMembership => [
+                'subtotal' => (float) $invoiceable->price,
+                'discount' => 0,
+                'total' => (float) $invoiceable->price,
+            ],
+
             default => throw new \InvalidArgumentException(
                 'Unsupported invoiceable model.'
             ),
         };
     }
-
     private function lockInvoiceable(Model $invoiceable): Model
     {
         return $invoiceable::query()

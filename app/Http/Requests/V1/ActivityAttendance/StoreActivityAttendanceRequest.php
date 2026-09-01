@@ -40,15 +40,16 @@ class StoreActivityAttendanceRequest extends FormRequest
 
             'checkInAt' => [
                 'nullable',
+                'required_with:checkOutAt',
                 'date_format:H:i',
             ],
 
             'checkOutAt' => [
+                'sometimes',
                 'nullable',
                 'date_format:H:i',
                 'after:checkInAt',
             ],
-
             'status' => [
                 'required',
                 Rule::enum(ActivityAttendanceStatusEnum::class),

@@ -22,8 +22,6 @@ class AllCafeProductResource extends JsonResource
             'isActive' =>
                 $this->is_active,
 
-            'ingredientsCount' =>
-                $this->ingredients_count ?? 0,
         ];
     }
 }

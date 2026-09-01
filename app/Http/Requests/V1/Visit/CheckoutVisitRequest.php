@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Requests\V1\Visit;
 
 use App\Enums\HttpStatusCode;
+use App\Enums\PaymentMethodEnum;
 use App\Helpers\ApiResponse;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rule;
 
 class CheckoutVisitRequest extends FormRequest
 {
@@ -49,7 +51,27 @@ class CheckoutVisitRequest extends FormRequest
                 'string',
                 'max:5000',
             ],
+
+            'paymentMethod' => [
+                Rule::requiredIf(
+                    $this->filled('amount')
+                ),
+                'nullable',
+                Rule::enum(PaymentMethodEnum::class),
+            ],
+
+            'cashShiftId' => [
+                Rule::requiredIf(
+                    (int) $this->input('paymentMethod') ===
+                    PaymentMethodEnum::CASH->value
+                ),
+                'nullable',
+                'integer',
+                'exists:cash_shifts,id',
+            ],
         ];
+
+
     }
 
     protected function failedValidation(Validator $validator): void

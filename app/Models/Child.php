@@ -13,8 +13,14 @@ class Child extends Model
     protected $fillable = [
         'name',
         'birth_date',
-        'phone',
+        'gender',
         'notes',
+
+        'guardian_name',
+        'guardian_phone',
+        'guardian_relation',
+        'guardian_email',
+        'guardian_notes',
     ];
 
     protected function casts(): array

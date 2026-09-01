@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payroll;
 
+use App\Enums\ActivitySessionEmployeeAttendanceStatusEnum;
 use App\Enums\EmployeeAttendanceStatusEnum;
 use App\Enums\EmployeeLeaveStatusEnum;
 use App\Enums\EmployeeSessionStatusEnum;
@@ -13,10 +14,12 @@ use App\Enums\PayrollPeriodStatusEnum;
 use App\Enums\PayrollProrationMethodEnum;
 use App\Enums\SalaryTypeEnum;
 use App\Exceptions\Payroll\PayrollHasIncompleteAttendanceException;
+use App\Exceptions\Payroll\PayrollHasMissingAttendanceException;
 use App\Exceptions\Payroll\PayrollHasPendingSessionsException;
 use App\Exceptions\Payroll\PayrollPeriodAlreadyExistsException;
 use App\Exceptions\Payroll\PayrollPeriodFinalizedException;
 use App\Exceptions\Payroll\PayrollPeriodHasNoEmployeesException;
+use App\Models\ActivitySessionEmployeeAttendance;
 use App\Models\EmployeeAttendance;
 use App\Models\EmployeeContract;
 use App\Models\EmployeeLeave;
@@ -164,6 +167,8 @@ class PayrollPeriodService
             $this->ensurePayrollHasEmployees($period);
 
             $settings = PayrollSetting::query()->firstOrCreate([]);
+
+            $this->ensureNoMissingAttendance($period);
 
             if ($settings->block_finalize_on_incomplete_attendance) {
                 $this->ensureNoIncompleteAttendance($period);
@@ -590,17 +595,24 @@ class PayrollPeriodService
         string $from,
         string $to
     ): int {
-        return EmployeeSession::query()
+        $standaloneSessionsCount = EmployeeSession::query()
             ->where('employee_id', $employeeId)
-            ->whereBetween(
-                'session_date',
-                [$from, $to]
-            )
-            ->where(
-                'status',
-                EmployeeSessionStatusEnum::COMPLETED->value
-            )
+            ->whereBetween('session_date', [$from, $to])
+            ->where('status', EmployeeSessionStatusEnum::COMPLETED->value)
             ->count();
+
+        $activitySessionsCount = ActivitySessionEmployeeAttendance::query()
+            ->where('employee_id', $employeeId)
+            ->whereIn('status', [
+                ActivitySessionEmployeeAttendanceStatusEnum::PRESENT->value,
+                ActivitySessionEmployeeAttendanceStatusEnum::LATE->value,
+            ])
+            ->whereHas('session', function ($query) use ($from, $to): void {
+                $query->whereBetween('session_date', [$from, $to]);
+            })
+            ->count();
+
+        return $standaloneSessionsCount + $activitySessionsCount;
     }
 
     private function calculateSessionEarnings(
@@ -843,6 +855,97 @@ class PayrollPeriodService
         }
     }
 
+    private function ensureNoMissingAttendance(
+        PayrollPeriod $period
+    ): void {
+        $payrolls = EmployeePayroll::query()
+            ->where('payroll_period_id', $period->id)
+            ->with('employee:id,name')
+            ->get([
+                'employee_id',
+                'payable_from',
+                'payable_to',
+            ]);
+
+        foreach ($payrolls as $payroll) {
+            $from = $payroll->payable_from->format('Y-m-d');
+            $to = $payroll->payable_to->format('Y-m-d');
+
+            $attendanceDates = EmployeeAttendance::query()
+                ->where('employee_id', $payroll->employee_id)
+                ->whereBetween('attendance_date', [$from, $to])
+                ->pluck('attendance_date')
+                ->map(
+                    fn ($date): string =>
+                        Carbon::parse($date)->format('Y-m-d')
+                )
+                ->flip();
+
+            $contracts = EmployeeContract::query()
+                ->where('employee_id', $payroll->employee_id)
+                ->whereDate('start_date', '<=', $to)
+                ->where(function ($query) use ($from): void {
+                    $query
+                        ->whereNull('end_date')
+                        ->orWhereDate('end_date', '>=', $from);
+                })
+                ->whereNotNull('work_start_time')
+                ->whereNotNull('work_end_time')
+                ->whereNotNull('work_days')
+                ->orderBy('start_date')
+                ->get();
+
+            foreach ($contracts as $contract) {
+                $segmentFrom = $contract->start_date->greaterThan(
+                    $payroll->payable_from
+                )
+                    ? $contract->start_date->copy()
+                    : $payroll->payable_from->copy();
+
+                $segmentTo = $contract->end_date
+                    && $contract->end_date->lessThan(
+                        $payroll->payable_to
+                    )
+                        ? $contract->end_date->copy()
+                        : $payroll->payable_to->copy();
+
+                if ($segmentFrom->greaterThan($segmentTo)) {
+                    continue;
+                }
+
+                $workDays = array_map(
+                    'strtolower',
+                    $contract->work_days ?? []
+                );
+
+                if ($workDays === []) {
+                    continue;
+                }
+
+                $date = $segmentFrom->copy()->startOfDay();
+
+                while ($date->lessThanOrEqualTo($segmentTo)) {
+                    $dayName = strtolower($date->format('l'));
+                    $dateString = $date->format('Y-m-d');
+
+                    if (
+                        in_array($dayName, $workDays, true)
+                        && ! $attendanceDates->has($dateString)
+                    ) {
+                        throw new PayrollHasMissingAttendanceException(
+                            employeeName:
+                                $payroll->employee?->name
+                                ?? (string) $payroll->employee_id,
+                            date: $dateString
+                        );
+                    }
+
+                    $date->addDay();
+                }
+            }
+        }
+    }
+
     private function ensureNoIncompleteAttendance(
         PayrollPeriod $period
     ): void {
@@ -886,17 +989,11 @@ class PayrollPeriodService
         PayrollPeriod $period
     ): void {
         $payrolls = EmployeePayroll::query()
-            ->where(
-                'payroll_period_id',
-                $period->id
-            )
-            ->whereIn(
-                'salary_type',
-                [
-                    SalaryTypeEnum::SESSION->value,
-                    SalaryTypeEnum::MONTHLY_PLUS_SESSION->value,
-                ]
-            )
+            ->where('payroll_period_id', $period->id)
+            ->whereIn('salary_type', [
+                SalaryTypeEnum::SESSION->value,
+                SalaryTypeEnum::MONTHLY_PLUS_SESSION->value,
+            ])
             ->get([
                 'employee_id',
                 'payable_from',
@@ -904,27 +1001,49 @@ class PayrollPeriodService
             ]);
 
         foreach ($payrolls as $payroll) {
-            $exists = EmployeeSession::query()
-                ->where(
-                    'employee_id',
-                    $payroll->employee_id
-                )
-                ->whereBetween(
-                    'session_date',
-                    [
-                        $payroll->payable_from->format('Y-m-d'),
-                        $payroll->payable_to->format('Y-m-d'),
-                    ]
-                )
-                ->where(
-                    'status',
-                    EmployeeSessionStatusEnum::PENDING->value
-                )
+            $hasPendingStandaloneSessions = EmployeeSession::query()
+                ->where('employee_id', $payroll->employee_id)
+                ->whereBetween('session_date', [
+                    $payroll->payable_from->format('Y-m-d'),
+                    $payroll->payable_to->format('Y-m-d'),
+                ])
+                ->where('status', EmployeeSessionStatusEnum::PENDING->value)
                 ->exists();
 
-            if ($exists) {
+            if ($hasPendingStandaloneSessions) {
+                throw new PayrollHasPendingSessionsException();
+            }
+
+            $hasUnresolvedActivitySessions = DB::table('activity_session_employees')
+                ->join(
+                    'activity_sessions',
+                    'activity_sessions.id',
+                    '=',
+                    'activity_session_employees.activity_session_id'
+                )
+                ->leftJoin('activity_session_employee_attendances', function ($join): void {
+                    $join->on(
+                        'activity_session_employee_attendances.activity_session_id',
+                        '=',
+                        'activity_session_employees.activity_session_id'
+                    )->on(
+                        'activity_session_employee_attendances.employee_id',
+                        '=',
+                        'activity_session_employees.employee_id'
+                    );
+                })
+                ->where('activity_session_employees.employee_id', $payroll->employee_id)
+                ->whereBetween('activity_sessions.session_date', [
+                    $payroll->payable_from->format('Y-m-d'),
+                    $payroll->payable_to->format('Y-m-d'),
+                ])
+                ->whereNull('activity_session_employee_attendances.id')
+                ->exists();
+
+            if ($hasUnresolvedActivitySessions) {
                 throw new PayrollHasPendingSessionsException();
             }
         }
     }
+
 }

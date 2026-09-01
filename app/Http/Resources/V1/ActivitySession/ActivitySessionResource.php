@@ -69,6 +69,10 @@ class ActivitySessionResource extends JsonResource
                     fn ($child) => [
                         'id' => $child->id,
                         'name' => $child->name,
+                        'assignedManually' => (bool) $child->pivot->assigned_manually,
+                        'activityMembershipId' => $child->pivot->activity_membership_id
+                            ? (int) $child->pivot->activity_membership_id
+                            : null,
                     ]
                 )
             ),

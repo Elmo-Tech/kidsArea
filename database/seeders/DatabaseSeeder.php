@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             LeaveTypeSeeder::class,
             PayrollSettingSeeder::class,
             LeavePayrollPolicySeeder::class,
+            EmployeeSeeder::class
 
         ]);
     }

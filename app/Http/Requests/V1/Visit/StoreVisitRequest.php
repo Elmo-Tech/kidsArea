@@ -21,31 +21,23 @@ class StoreVisitRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'childId' => [
+            /*'childId' => [
                 'nullable',
                 'integer',
                 'exists:children,id',
                 'required_without:childName',
-            ],
+            ],*/
 
-            'childName' => [
+            'customerName' => [
                 'nullable',
                 'string',
                 'max:255',
-                'required_without:childId',
-                Rule::prohibitedIf(
-                    fn (): bool => $this->filled('childId')
-                ),
             ],
 
-            'childPhone' => [
+            'customerPhone' => [
                 'nullable',
                 'string',
                 'max:30',
-                'required_without:childId',
-                Rule::prohibitedIf(
-                    fn (): bool => $this->filled('childId')
-                ),
             ],
 
             'notes' => [

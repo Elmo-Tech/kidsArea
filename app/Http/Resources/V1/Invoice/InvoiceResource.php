@@ -7,6 +7,7 @@ namespace App\Http\Resources\V1\Invoice;
 use App\Models\ActivityUsage;
 use App\Models\CafeOrder;
 use App\Models\VisitCheckout;
+use App\Models\ActivityMembership;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,7 @@ class InvoiceResource extends JsonResource
                 $this->invoiceable instanceof VisitCheckout => 'visit',
                 $this->invoiceable instanceof ActivityUsage => 'activity_usage',
                 $this->invoiceable instanceof CafeOrder => 'cafe_order',
+                $this->invoiceable instanceof ActivityMembership => 'activity_membership',
                 default => null,
             },
 
@@ -53,6 +55,9 @@ class InvoiceResource extends JsonResource
             $this->invoiceable instanceof CafeOrder =>
                 $this->cafeOrderDetails(),
 
+            $this->invoiceable instanceof ActivityMembership =>
+                $this->activityMembershipDetails(),
+
             default => [],
         };
     }
@@ -69,7 +74,7 @@ class InvoiceResource extends JsonResource
                 ? [
                     'id' => $visit->child->id,
                     'name' => $visit->child->name,
-                    'phone' => $visit->child->phone,
+                    'phone' => $visit->child->guardian_phone,
                 ]
                 : null,
 
@@ -145,6 +150,36 @@ class InvoiceResource extends JsonResource
                     'total' => $item->total,
                 ];
             }),
+        ];
+    }
+
+    private function activityMembershipDetails(): array
+    {
+        $membership = $this->invoiceable;
+
+        return [
+            'membershipId' => $membership->id,
+
+            'child' => $membership->child
+                ? [
+                    'id' => $membership->child->id,
+                    'name' => $membership->child->name,
+                ]
+                : null,
+
+            'activity' => [
+                'id' => $membership->activity_id,
+                'name' => $membership->activity?->name,
+            ],
+
+            'pricingPlan' => [
+                'id' => $membership->pricing_plan_id,
+                'name' => $membership->pricingPlan?->name,
+            ],
+
+            'price' => $membership->price,
+            'startDate' => $membership->start_date,
+            'endDate' => $membership->end_date,
         ];
     }
 }

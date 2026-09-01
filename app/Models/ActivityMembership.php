@@ -9,6 +9,9 @@ use App\Traits\CreatedUpdatedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ActivityMembership extends Model
 {
@@ -23,6 +26,7 @@ class ActivityMembership extends Model
         'price',
         'status',
         'notes',
+        'renewed_from_membership_id',
     ];
 
     protected function casts(): array
@@ -64,6 +68,38 @@ class ActivityMembership extends Model
     {
         return $this->hasMany(
             ActivityAttendance::class
+        );
+    }
+
+    public function payments(): MorphMany
+    {
+        return $this->morphMany(
+            Payment::class,
+            'payable'
+        );
+    }
+
+    public function invoice(): MorphOne
+    {
+        return $this->morphOne(
+            Invoice::class,
+            'invoiceable'
+        );
+    }
+
+    public function renewedFrom(): BelongsTo
+    {
+        return $this->belongsTo(
+            self::class,
+            'renewed_from_membership_id'
+        );
+    }
+
+    public function renewal(): HasOne
+    {
+        return $this->hasOne(
+            self::class,
+            'renewed_from_membership_id'
         );
     }
 

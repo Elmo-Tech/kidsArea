@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Resources\V1\PayrollPayment;
 
 use Illuminate\Http\Request;
@@ -12,30 +14,38 @@ class PayrollPaymentResource extends JsonResource
         return [
             'id' => $this->id,
 
-            'employeePayrollId' =>
-                $this->employee_payroll_id,
+            'employeePayrollId' => $this->employee_payroll_id,
 
-            'amount' =>
-                $this->amount,
+            'amount' => $this->amount,
 
-            'paidAt' =>
-                $this->paid_at,
+            'paymentMethod' => $this->payment_method->value,
 
-            'reference' =>
-                $this->reference,
+            'cashShift' => $this->cashShift
+                ? [
+                    'id' => $this->cashShift->id,
 
-            'notes' =>
-                $this->notes,
+                    'register' => [
+                        'id' => $this->cashShift->register?->id,
+                        'name' => $this->cashShift->register?->name,
+                        'isMain' => $this->cashShift->register?->is_main,
+                    ],
+                ]
+                : null,
+
+            'paidAt' => $this->paid_at,
+
+            'reference' => $this->reference,
+
+            'notes' => $this->notes,
 
             'createdBy' => $this->createdBy
                 ? [
                     'id' => $this->createdBy->id,
-                    'name' => $this->createdBy->username,
+                    'name' => $this->createdBy->name,
                 ]
                 : null,
 
-            'createdAt' =>
-                $this->created_at
+            'createdAt' => $this->created_at
         ];
     }
 }

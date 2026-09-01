@@ -46,6 +46,13 @@ return [
     'activity_usage_visit_not_open' =>
         'لا يمكن إضافة استخدام إلى زيارة غير مفتوحة.',
     'schedule_already_exists' => 'يوجد جدول مواعيد مطابق لهذا النشاط بالفعل.',
+    'child_not_assigned_to_activity_session' => 'الطفل غير موجود في هذه الحصة.',
+    'child_already_has_active_membership' => 'الطفل لديه بالفعل اشتراك نشط في هذا النشاط.',
+    'cancelled_membership_cannot_receive_payment' => 'لا يمكن تسجيل دفع لاشتراك ملغي.',
+    'membership_not_renewable' => 'يمكن تجديد الاشتراكات المنتهية فقط.',
+    'renewal_pricing_plan_activity_mismatch' =>
+    'خطة الأسعار المختارة لا تنتمي إلى نفس النشاط.',
+    'membership_already_renewed' => 'تم تجديد هذا الاشتراك بالفعل.',
 
 
 ];

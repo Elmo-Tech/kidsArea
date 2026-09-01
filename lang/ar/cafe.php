@@ -18,4 +18,6 @@ return [
 
     'order_visit_not_open' =>
         'لا يمكن ربط الطلب بزيارة غير مفتوحة.',
+    'order_discount_exceeds_subtotal' =>
+        'قيمة الخصم لا يمكن أن تكون أكبر من إجمالي الطلب.',
 ];

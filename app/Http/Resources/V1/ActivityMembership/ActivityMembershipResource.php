@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources\V1\ActivityMembership;
 
+use App\Http\Resources\V1\Invoice\InvoiceResource;
+use App\Http\Resources\V1\Payment\PaymentResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -28,27 +30,52 @@ class ActivityMembershipResource extends JsonResource
                 'type' => $this->pricingPlan->type->value,
             ],
 
-            'startDate' =>
-                $this->start_date?->format('Y-m-d'),
+            'startDate' => $this->start_date?->format('Y-m-d'),
+            'endDate' => $this->end_date?->format('Y-m-d'),
 
-            'endDate' =>
-                $this->end_date?->format('Y-m-d'),
+            'sessionsTotal' => $this->sessions_total,
 
-            'sessionsTotal' =>
-                $this->sessions_total,
+            'sessionsUsed' => $this->when(
+                isset($this->sessions_used),
+                fn () => (int) $this->sessions_used
+            ),
 
-            'price' =>
-                $this->price,
+            'sessionsRemaining' => $this->when(
+                isset($this->sessions_remaining),
+                fn () => (int) $this->sessions_remaining
+            ),
 
-            'status' =>
-                $this->status->value,
+            'price' => $this->price,
+            'status' => $this->status->value,
+            'notes' => $this->notes,
 
-            'notes' =>
-                $this->notes,
+            'paymentSummary' => $this->when(
+                isset($this->payment_summary),
+                fn () => $this->payment_summary
+            ),
 
-            'createdAt' =>
-                $this->created_at
+            'payments' => PaymentResource::collection(
+                $this->whenLoaded('payments')
+            ),
 
+            'invoice' => $this->whenLoaded(
+                'invoice',
+                fn () => $this->invoice
+                    ? new InvoiceResource($this->invoice)
+                    : null
+            ),
+
+            'renewedFromMembershipId' =>
+                $this->renewed_from_membership_id
+                    ? (int) $this->renewed_from_membership_id
+                    : null,
+
+            'renewalId' => $this->whenLoaded(
+                'renewal',
+                fn () => $this->renewal?->id
+            ),
+
+            'createdAt' => $this->created_at,
         ];
     }
 }

@@ -42,7 +42,6 @@ class ActivityUsageService
         return QueryBuilder::for(ActivityUsage::class)
             ->with([
                 'visit',
-                'child',
                 'activity',
                 'pricingPlan',
             ])
@@ -97,10 +96,9 @@ class ActivityUsageService
                 $this->ensureVisitIsOpen($visit);
             }
 
-            $child = $this->resolveChild($data);
 
             $this->ensureNoActiveUsageForSameActivity(
-                childId: (int) $child->id,
+                customerPhone: $data['customerPhone'],
                 activityId: (int) $pricingPlan->activity_id
             );
 
@@ -117,11 +115,12 @@ class ActivityUsageService
 
             $usage = ActivityUsage::create([
                 'visit_id' => $data['visitId'] ?? null,
-                'child_id' => $child->id,
                 'activity_id' => $pricingPlan->activity_id,
                 'activity_pricing_plan_id' => $pricingPlan->id,
                 'usage_type' => $usageType->value,
                 'started_at' => $startedAt,
+                'customer_name' => $data['customerName'],
+                'customer_phone' => $data['customerPhone'],
                 'ended_at' => null,
                 'planned_duration_minutes' => $plannedDurationMinutes,
                 'planned_end_at' => $plannedEndAt,
@@ -359,9 +358,9 @@ class ActivityUsageService
             }
 
             /*
-             * If usage is currently paused,
-             * close the open pause automatically.
-             */
+            * If usage is currently paused,
+            * close the open pause automatically.
+            */
             if (
                 $usage->status ===
                 ActivityUsageStatusEnum::PAUSED
@@ -373,15 +372,15 @@ class ActivityUsageService
 
             $endedAt = now();
 
+            /*
+            * First close the usage.
+            */
             $usage->update([
                 'ended_at' =>
                     $endedAt,
 
                 'status' =>
                     ActivityUsageStatusEnum::CLOSED->value,
-
-                'final_amount' =>
-                    $data['finalAmount'],
 
                 'closed_by' =>
                     Auth::id(),
@@ -392,9 +391,26 @@ class ActivityUsageService
                         : $usage->notes,
             ]);
 
+            /*
+            * Calculate:
+            * - paused minutes
+            * - actual duration
+            * - expected amount
+            */
             $this->syncUsageMetrics(
                 $usage
             );
+
+            $usage->refresh();
+
+            /*
+            * Final amount is calculated by the system,
+            * not received from frontend.
+            */
+            $usage->update([
+                'final_amount' =>
+                    $usage->expected_amount,
+            ]);
 
             return $this->loadUsage(
                 $usage->refresh()
@@ -666,13 +682,13 @@ class ActivityUsageService
     }
 
     private function ensureNoActiveUsageForSameActivity(
-        int $childId,
+        string $customerPhone,
         int $activityId
     ): void {
         $exists = ActivityUsage::query()
             ->where(
-                'child_id',
-                $childId
+                'customer_phone',
+                $customerPhone
             )
             ->where(
                 'activity_id',
@@ -708,7 +724,7 @@ class ActivityUsageService
     ): ActivityUsage {
         return $usage->load([
             'visit',
-            'child',
+            //'child',
             'activity',
             'pricingPlan',
             'pauses',

@@ -9,6 +9,7 @@ use App\Enums\VisitStatusEnum;
 use App\Exceptions\Cafe\CafeOrderAlreadyCancelledException;
 use App\Exceptions\Cafe\CafeOrderAlreadyCompletedException;
 use App\Exceptions\Cafe\CafeOrderAlreadyConfirmedException;
+use App\Exceptions\Cafe\CafeOrderDiscountExceedsSubtotalException;
 use App\Exceptions\Cafe\CafeOrderHasNoItemsException;
 use App\Exceptions\Cafe\CafeOrderNotEditableException;
 use App\Exceptions\Cafe\CafeOrderVisitNotOpenException;
@@ -16,6 +17,7 @@ use App\Models\CafeOrder;
 use App\Models\CafeProduct;
 use App\Models\Visit;
 use App\Services\Inventory\StockConsumptionService;
+use App\Services\Payment\PaymentService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +27,8 @@ use Spatie\QueryBuilder\QueryBuilder;
 class CafeOrderService
 {
     public function __construct(
-        private readonly StockConsumptionService $stockConsumptionService
+        private readonly StockConsumptionService $stockConsumptionService,
+        private readonly PaymentService $paymentService
     ) {}
 
     public function all(Request $request): LengthAwarePaginator
@@ -67,6 +70,7 @@ class CafeOrderService
 
             $this->syncItems($order, $data['items']);
             $this->recalculateTotals($order);
+            $this->confirmDraftOrder($order);
 
             return $this->loadOrder($order->refresh());
         });
@@ -125,29 +129,7 @@ class CafeOrderService
                 throw new CafeOrderNotEditableException();
             }
 
-            if ($order->visit_id !== null) {
-                $this->ensureVisitIsOpen((int) $order->visit_id);
-            }
-
-            $order->load(['items.product.ingredients.inventoryItem']);
-
-            if ($order->items->isEmpty()) {
-                throw new CafeOrderHasNoItemsException();
-            }
-
-            foreach ($order->items as $item) {
-                $this->stockConsumptionService->consumeProduct(
-                    product: $item->product,
-                    quantity: (int) $item->quantity,
-                    sourceType: 'cafe_order',
-                    sourceId: $order->id
-                );
-            }
-
-            $order->update([
-                'status' => CafeOrderStatusEnum::CONFIRMED->value,
-                'confirmed_at' => now(),
-            ]);
+            $this->confirmDraftOrder($order);
 
             return $this->loadOrder($order->refresh());
         });
@@ -206,6 +188,33 @@ class CafeOrderService
         });
     }
 
+    private function confirmDraftOrder(CafeOrder $order): void
+    {
+        if ($order->visit_id !== null) {
+            $this->ensureVisitIsOpen((int) $order->visit_id);
+        }
+
+        $order->load(['items.product.ingredients.inventoryItem']);
+
+        if ($order->items->isEmpty()) {
+            throw new CafeOrderHasNoItemsException();
+        }
+
+        foreach ($order->items as $item) {
+            $this->stockConsumptionService->consumeProduct(
+                product: $item->product,
+                quantity: (int) $item->quantity,
+                sourceType: 'cafe_order',
+                sourceId: $order->id
+            );
+        }
+
+        $order->update([
+            'status' => CafeOrderStatusEnum::CONFIRMED->value,
+            'confirmed_at' => now(),
+        ]);
+    }
+
     private function syncItems(CafeOrder $order, array $items): void
     {
         $order->items()->delete();
@@ -228,18 +237,33 @@ class CafeOrderService
         }
     }
 
-    private function recalculateTotals(CafeOrder $order): void
-    {
-        $subtotal = (float) $order->items()->sum('total');
-        $discount = (float) $order->discount;
-        $total = max(0, $subtotal - $discount);
+    private function recalculateTotals(
+        CafeOrder $order
+    ): void {
+        $subtotal = round(
+            (float) $order->items()->sum('total'),
+            2
+        );
+
+        $discount = round(
+            (float) $order->discount,
+            2
+        );
+
+        if ($discount > $subtotal) {
+            throw new CafeOrderDiscountExceedsSubtotalException();
+        }
+
+        $total = round(
+            $subtotal - $discount,
+            2
+        );
 
         $order->update([
-            'subtotal' => round($subtotal, 2),
-            'total' => round($total, 2),
+            'subtotal' => $subtotal,
+            'total' => $total,
         ]);
     }
-
     private function ensureOrderIsEditable(CafeOrder $order): void
     {
         if ($order->status !== CafeOrderStatusEnum::DRAFT) {
@@ -266,10 +290,27 @@ class CafeOrderService
 
     private function loadOrder(CafeOrder $order): CafeOrder
     {
-        return $order->load([
+        $order->load([
             'visit',
             'items.product',
         ]);
+
+        if (
+            $order->visit_id === null
+            && $order->status === CafeOrderStatusEnum::COMPLETED
+        ) {
+            $order->load([
+                'payments',
+                'invoice',
+            ]);
+
+            $order->setAttribute(
+                'payment_summary',
+                $this->paymentService->getPaymentSummary($order)
+            );
+        }
+
+        return $order;
     }
 
     private function generateOrderNumber(): string

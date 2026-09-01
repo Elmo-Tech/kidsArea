@@ -30,17 +30,17 @@ class StartActivityUsageRequest extends FormRequest
                 'nullable',
                 'integer',
                 'exists:children,id',
-                'required_without:childName',
+                'required_without:customerName',
             ],
 
-            'childName' => [
+            'customerName' => [
                 'nullable',
                 'string',
                 'max:255',
                 'required_without:childId',
             ],
 
-            'childPhone' => [
+            'customerPhone' => [
                 'nullable',
                 'string',
                 'max:30',

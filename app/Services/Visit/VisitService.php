@@ -146,7 +146,7 @@ class VisitService
         }
 
         $child = Child::query()
-            ->where('phone', $data['childPhone'])
+            ->where('guardian_phone', $data['customerPhone'])
             ->first();
 
         if ($child) {
@@ -154,8 +154,8 @@ class VisitService
         }
 
         return Child::query()->create([
-            'name' => $data['childName'],
-            'phone' => $data['childPhone'],
+            'guardian_name' => $data['customerName'],
+            'guardian_phone' => $data['customerPhone'],
         ]);
     }
 

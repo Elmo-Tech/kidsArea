@@ -53,6 +53,8 @@ class VisitCheckoutWorkflowService
 
                 $this->paymentService->createPayment($checkout, [
                     'amount' => $data['amount'],
+                    'paymentMethod' => $data['paymentMethod'],
+                    'cashShiftId' => $data['cashShiftId'] ?? null,
                     'paidAt' => $data['paidAt'] ?? null,
                     'reference' => $data['reference'] ?? null,
                     'notes' => $data['notes'] ?? null,
