@@ -154,6 +154,7 @@ class VisitService
         }
 
         return Child::query()->create([
+                'name' => $data['customerName'],
             'guardian_name' => $data['customerName'],
             'guardian_phone' => $data['customerPhone'],
         ]);

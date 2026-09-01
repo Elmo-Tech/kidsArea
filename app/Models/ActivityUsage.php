@@ -73,12 +73,12 @@ class ActivityUsage extends Model
         );
     }
 
-    /*public function child(): BelongsTo
+    public function child(): BelongsTo
     {
         return $this->belongsTo(
             Child::class
         );
-    }*/
+    }
 
     public function activity(): BelongsTo
     {
