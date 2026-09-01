@@ -297,7 +297,7 @@ class RoleAndPermissionsSeeder extends Seeder
 
             // Activity Membership Payments
             'activity-membership-payments.store',
-            'activity-membership-payments.summary'.
+            'activity-membership-payments.summary',
 
             // Expense Categories
             'expense-categories.index',
